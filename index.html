@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiblioEscolar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/estilos.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       PANTALLA DE LOGIN
+  ════════════════════════════════════════ -->
+  <div id="pantalla-login" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">📚</div>
+      <h1 class="login-title">BiblioEscolar</h1>
+      <p class="login-subtitle">Ingresá para continuar</p>
+      <div id="login-error" class="alert alert-danger"></div>
+      <div class="form-group">
+        <label>Usuario</label>
+        <input class="form-input" id="login-usuario" type="text" placeholder="Ej: admin">
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label>Contraseña</label>
+        <input class="form-input" id="login-password" type="password" placeholder="••••••">
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.login()">Ingresar</button>
+      <p class="login-hint">Demo: usuario <strong>admin</strong> / contraseña <strong>1234</strong></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       APP PRINCIPAL (oculta hasta login)
+  ════════════════════════════════════════ -->
+  <div id="app" class="app-hidden">
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo-icon">📚</div>
+      <h1>BiblioEscolar</h1>
+      <div class="user-badge">
+        <div class="avatar" id="avatar-initials">--</div>
+        <span class="user-name" id="header-username">--</span>
+        <button class="btn btn-logout" onclick="Auth.logout()">Salir</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        <div class="nav-section">
+          <div class="nav-label">Principal</div>
+          <div class="nav-item active" data-sec="inicio" onclick="UI.navigate(this,'inicio')">
+            <span class="icon">🏠</span> Inicio
+          </div>
+          <div class="nav-item" data-sec="catalogo" onclick="UI.navigate(this,'catalogo')">
+            <span class="icon">📖</span> Catálogo
+          </div>
+          <div class="nav-item" data-sec="prestamos" onclick="UI.navigate(this,'prestamos')">
+            <span class="icon">🔄</span> Préstamos
+          </div>
+        </div>
+        <div class="nav-divider"></div>
+        <div class="nav-section">
+          <div class="nav-label">Administración</div>
+          <div class="nav-item" data-sec="usuarios" onclick="UI.navigate(this,'usuarios')">
+            <span class="icon">👥</span> Usuarios
+          </div>
+          <div class="nav-item" data-sec="vencidos" onclick="UI.navigate(this,'vencidos')">
+            <span class="icon">⚠️</span> Vencidos
+            <span id="badge-vencidos" class="badge badge-rojo" style="margin-left:auto;font-size:10px;padding:2px 7px"></span>
+          </div>
+          <div class="nav-item" data-sec="reportes" onclick="UI.navigate(this,'reportes')">
+            <span class="icon">📊</span> Reportes
+          </div>
+        </div>
+        <div class="nav-divider"></div>
+        <div class="nav-section">
+          <div class="nav-item" data-sec="config" onclick="UI.navigate(this,'config')">
+            <span class="icon">⚙️</span> Configuración
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN -->
+      <main class="main">
+
+        <!-- INICIO -->
+        <div class="section active" id="sec-inicio">
+          <div class="page-header">
+            <h2>Panel principal</h2>
+            <p id="fecha-hoy"></p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="label">Libros en catálogo</div>
+              <div class="value" id="stat-libros">0</div>
+              <div class="trend">títulos registrados</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Préstamos activos</div>
+              <div class="value" id="stat-activos">0</div>
+              <div class="trend">en curso</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Vencidos</div>
+              <div class="value" id="stat-vencidos" style="color:#A32D2D">0</div>
+              <div class="trend" style="color:#A32D2D">requieren atención</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Usuarios registrados</div>
+              <div class="value" id="stat-usuarios">0</div>
+              <div class="trend">alumnos y docentes</div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Últimos préstamos</h3>
+              <button class="btn" onclick="UI.navigate(document.querySelector('[data-sec=prestamos]'),'prestamos')">Ver todos</button>
+            </div>
+            <table>
+              <thead>
+                <tr><th>Libro</th><th>Usuario</th><th>Devolución</th><th>Estado</th></tr>
+              </thead>
+              <tbody id="tabla-ultimos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CATÁLOGO -->
+        <div class="section" id="sec-catalogo">
+          <div class="page-header">
+            <h2>Catálogo de libros</h2>
+            <p>Buscá y gestioná el inventario de la biblioteca</p>
+          </div>
+          <div id="alert-libro" class="alert alert-success"></div>
+          <div class="search-bar">
+            <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Catalogo.render()">
+            <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr><th>Título</th><th>Autor</th><th>Género</th><th>Ejemplares</th><th>Disponibles</th><th></th></tr>
+              </thead>
+              <tbody id="tabla-catalogo"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PRÉSTAMOS -->
+        <div class="section" id="sec-prestamos">
+          <div class="page-header">
+            <h2>Préstamos</h2>
+            <p>Registrá nuevos préstamos y devoluciones</p>
+          </div>
+          <div id="alert-prestamo" class="alert alert-success"></div>
+          <div class="toolbar">
+            <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr><th>Libro</th><th>Usuario</th><th>Prestado</th><th>Devolución</th><th>Estado</th><th></th></tr>
+              </thead>
+              <tbody id="tabla-prestamos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- USUARIOS -->
+        <div class="section" id="sec-usuarios">
+          <div class="page-header">
+            <h2>Usuarios</h2>
+            <p>Alumnos y docentes registrados</p>
+          </div>
+          <div id="alert-usuario" class="alert alert-success"></div>
+          <div class="search-bar">
+            <input type="text" id="buscar-usuario" placeholder="Buscar usuario..." oninput="Usuarios.render()">
+            <button class="btn btn-primary" onclick="UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr><th>Nombre</th><th>Tipo</th><th>Curso/Rol</th><th>Préstamos activos</th><th></th></tr>
+              </thead>
+              <tbody id="tabla-usuarios"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VENCIDOS -->
+        <div class="section" id="sec-vencidos">
+          <div class="page-header">
+            <h2>Préstamos vencidos</h2>
+            <p>Libros que no fueron devueltos a tiempo</p>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr><th>Libro</th><th>Usuario</th><th>Vencimiento</th><th>Días de atraso</th><th></th></tr>
+              </thead>
+              <tbody id="tabla-vencidos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- REPORTES -->
+        <div class="section" id="sec-reportes">
+          <div class="page-header">
+            <h2>Reportes</h2>
+            <p>Estadísticas de la biblioteca</p>
+          </div>
+          <div class="stats-grid" id="stats-reportes"></div>
+          <div class="table-card">
+            <div class="table-header"><h3>Libros más prestados</h3></div>
+            <table>
+              <thead><tr><th>Título</th><th>Autor</th><th>Veces prestado</th></tr></thead>
+              <tbody id="tabla-mas-prestados"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CONFIGURACIÓN -->
+        <div class="section" id="sec-config">
+          <div class="page-header">
+            <h2>Configuración</h2>
+            <p>Ajustes generales de la aplicación</p>
+          </div>
+          <div class="table-card" style="padding:1.5rem">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Nombre de la institución</label>
+                <input class="form-input" id="cfg-nombre" type="text" value="Escuela N° 1">
+              </div>
+              <div class="form-group">
+                <label>Días de préstamo por defecto</label>
+                <input class="form-input" id="cfg-dias" type="number" value="7" min="1" max="60">
+              </div>
+              <div class="form-group">
+                <label>Nombre del bibliotecario</label>
+                <input class="form-input" id="cfg-biblio" type="text" value="Bibliotecario">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:4px">
+                <button class="btn btn-primary" onclick="Config.guardar()">Guardar cambios</button>
+              </div>
+            </div>
+            <div id="alert-config" class="alert alert-success" style="margin-top:1rem"></div>
+            <div class="config-hint">
+              <p>💡 <strong>Próximo paso:</strong> Conectá <code>firebase.js</code> para que los datos
+              persistan entre sesiones. Reemplazá las funciones de <code>app.js</code> con llamadas
+              a Firestore.</p>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div><!-- /app -->
+
+  <!-- ═══════════════════════════════════════
+       MODALES
+  ════════════════════════════════════════ -->
+
+  <!-- Modal: Nuevo libro -->
+  <div class="overlay" id="modal-libro">
+    <div class="modal">
+      <h3>📖 Agregar libro</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Título *</label>
+          <input class="form-input" id="libro-titulo" type="text" placeholder="Título del libro">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Autor *</label>
+            <input class="form-input" id="libro-autor" type="text" placeholder="Autor">
+          </div>
+          <div class="form-group">
+            <label>ISBN</label>
+            <input class="form-input" id="libro-isbn" type="text" placeholder="ISBN">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Género</label>
+            <select class="form-select" id="libro-genero">
+              <option>Literatura</option>
+              <option>Novela</option>
+              <option>Texto escolar</option>
+              <option>Historia</option>
+              <option>Ciencias</option>
+              <option>Matemática</option>
+              <option>Arte</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cantidad de ejemplares</label>
+            <input class="form-input" id="libro-ejemplares" type="number" value="1" min="1">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="UI.cerrarModal('modal-libro')">Cancelar</button>
+        <button class="btn btn-primary" onclick="Catalogo.agregar()">Guardar libro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nuevo usuario -->
+  <div class="overlay" id="modal-usuario">
+    <div class="modal">
+      <h3>👤 Agregar usuario</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nombre completo *</label>
+          <input class="form-input" id="usu-nombre" type="text" placeholder="Nombre y apellido">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select class="form-select" id="usu-tipo">
+              <option>Alumno</option>
+              <option>Docente</option>
+              <option>Administrativo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Curso / Rol</label>
+            <input class="form-input" id="usu-curso" type="text" placeholder="Ej: 3° B">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="UI.cerrarModal('modal-usuario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="Usuarios.agregar()">Guardar usuario</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nuevo préstamo -->
+  <div class="overlay" id="modal-prestamo">
+    <div class="modal">
+      <h3>🔄 Nuevo préstamo</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Libro *</label>
+          <select class="form-select" id="pres-libro"></select>
+        </div>
+        <div class="form-group">
+          <label>Usuario *</label>
+          <select class="form-select" id="pres-usuario"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha de préstamo</label>
+            <input class="form-input" id="pres-fecha" type="date">
+          </div>
+          <div class="form-group">
+            <label>Fecha de devolución</label>
+            <input class="form-input" id="pres-devolucion" type="date">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="UI.cerrarModal('modal-prestamo')">Cancelar</button>
+        <button class="btn btn-primary" onclick="Prestamos.registrar()">Registrar préstamo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCRIPTS  (orden importa)
+  ════════════════════════════════════════ -->
+  <script src="assets/db.js"></script>
+  <script src="assets/auth.js"></script>
+  <script src="assets/catalogo.js"></script>
+  <script src="assets/prestamos.js"></script>
+  <script src="assets/usuarios.js"></script>
+  <script src="assets/reportes.js"></script>
+  <script src="assets/app.js"></script>
+
+</body>
+</html>
