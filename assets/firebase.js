@@ -1,11 +1,13 @@
 /* ════════════════════════════════════════════
-   firebase.js — Conexión con Firebase Firestore
+   firebase.js — Firebase Firestore + Auth
    ════════════════════════════════════════════ */
 
-import { initializeApp }                          from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { initializeApp }                               from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
 import { getFirestore, collection, getDocs,
          addDoc, deleteDoc, doc, updateDoc,
-         query, orderBy }                         from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+         query, orderBy }                              from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged }                 from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyAeZpIpMaUhaRPmqOSGZn0qhN-mPAbgkxw",
@@ -16,13 +18,28 @@ const firebaseConfig = {
   appId:             "1:819436243540:web:9ea1833d653f13bf617bc1"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
 // ── Referencias a colecciones ─────────────────
 const colLibros    = collection(db, 'libros');
 const colUsuarios  = collection(db, 'usuarios');
 const colPrestamos = collection(db, 'prestamos');
+
+// ── AUTH ──────────────────────────────────────
+async function fbLogin(email, password) {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
+}
+
+async function fbLogout() {
+  await signOut(auth);
+}
+
+function fbOnAuthChange(callback) {
+  onAuthStateChanged(auth, callback);
+}
 
 // ── LIBROS ────────────────────────────────────
 async function fbGetLibros() {
@@ -35,6 +52,9 @@ async function fbAddLibro(libro) {
 }
 async function fbDeleteLibro(id) {
   await deleteDoc(doc(db, 'libros', id));
+}
+async function fbUpdateLibro(id, datos) {
+  await updateDoc(doc(db, 'libros', id), datos);
 }
 
 // ── USUARIOS ──────────────────────────────────
@@ -63,12 +83,8 @@ async function fbUpdatePrestamo(id, datos) {
   await updateDoc(doc(db, 'prestamos', id), datos);
 }
 
-// ── LIBROS: actualizar prestados ──────────────
-async function fbUpdateLibro(id, datos) {
-  await updateDoc(doc(db, 'libros', id), datos);
-}
-
 export {
+  fbLogin, fbLogout, fbOnAuthChange,
   fbGetLibros,    fbAddLibro,    fbDeleteLibro,  fbUpdateLibro,
   fbGetUsuarios,  fbAddUsuario,  fbDeleteUsuario,
   fbGetPrestamos, fbAddPrestamo, fbUpdatePrestamo

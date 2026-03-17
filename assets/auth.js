@@ -1,58 +1,51 @@
 /* ════════════════════════════════════════════
-   auth.js — Login y manejo de roles
+   auth.js — Login con Firebase Authentication
    ════════════════════════════════════════════ */
 
-const USUARIOS_SISTEMA = [
-  { usuario: 'admin',    password: '1234',   nombre: 'María Administradora', rol: 'admin'         },
-  { usuario: 'biblio',   password: 'biblio', nombre: 'Juan Bibliotecario',   rol: 'bibliotecario' },
-  { usuario: 'consulta', password: '0000',   nombre: 'Solo Lectura',         rol: 'consulta'      },
-];
+import { fbLogin, fbLogout, fbOnAuthChange } from './firebase.js';
+import DB from './db.js';
+import UI from './ui.js';
 
 const Auth = {
   usuarioActual: null,
 
-  login() {
-    const usuario  = document.getElementById('login-usuario').value.trim();
+  init() {
+    // Si el usuario ya tenía sesión abierta, entrar directo
+    fbOnAuthChange(user => {
+      if (user && !this.usuarioActual) {
+        this.usuarioActual = user;
+        this._mostrarApp(user.email);
+      }
+    });
+  },
+
+  async login() {
+    const email    = document.getElementById('login-usuario').value.trim();
     const password = document.getElementById('login-password').value;
     const errorEl  = document.getElementById('login-error');
 
-    const encontrado = USUARIOS_SISTEMA.find(
-      u => u.usuario === usuario && u.password === password
-    );
-
-    if (!encontrado) {
-      errorEl.textContent = 'Usuario o contraseña incorrectos.';
+    if (!email || !password) {
+      errorEl.textContent = 'Completá email y contraseña.';
       errorEl.classList.add('show');
       return;
     }
 
     errorEl.classList.remove('show');
-    this.usuarioActual = encontrado;
-
-    document.getElementById('header-username').textContent = encontrado.nombre;
-    document.getElementById('avatar-initials').textContent = encontrado.nombre
-      .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-
-    document.getElementById('pantalla-login').style.display = 'none';
-    const app = document.getElementById('app');
-    app.classList.remove('app-hidden');
-    app.classList.add('app-visible');
-
-    this.aplicarPermisos(encontrado.rol);
-
-    // Cargar datos desde Firebase y mostrar inicio
     UI.mostrarCargando(true);
-    DB.cargar().then(() => {
+
+    try {
+      const user = await fbLogin(email, password);
+      this.usuarioActual = user;
+      this._mostrarApp(user.email);
+    } catch (e) {
       UI.mostrarCargando(false);
-      Inicio.render();
-    }).catch(err => {
-      UI.mostrarCargando(false);
-      console.error('Error al cargar datos:', err);
-      alert('No se pudo conectar con la base de datos. Verificá la conexión.');
-    });
+      errorEl.textContent = 'Email o contraseña incorrectos.';
+      errorEl.classList.add('show');
+    }
   },
 
-  logout() {
+  async logout() {
+    await fbLogout();
     this.usuarioActual = null;
     document.getElementById('app').classList.replace('app-visible', 'app-hidden');
     document.getElementById('pantalla-login').style.display = 'flex';
@@ -60,15 +53,30 @@ const Auth = {
     document.getElementById('login-password').value = '';
   },
 
-  aplicarPermisos(rol) {
-    const soloLectura = rol === 'consulta';
-    document.querySelectorAll('.btn-primary, .btn-danger').forEach(btn => {
-      btn.style.display = soloLectura ? 'none' : '';
+  _mostrarApp(email) {
+    // Nombre para mostrar: la parte antes del @
+    const nombre = email.split('@')[0];
+    const iniciales = nombre.slice(0, 2).toUpperCase();
+
+    document.getElementById('header-username').textContent = nombre;
+    document.getElementById('avatar-initials').textContent = iniciales;
+    document.getElementById('pantalla-login').style.display = 'none';
+
+    const app = document.getElementById('app');
+    app.classList.remove('app-hidden');
+    app.classList.add('app-visible');
+
+    DB.cargar().then(() => {
+      UI.mostrarCargando(false);
+      import('./inicio.js').then(m => m.default.render());
+    }).catch(() => {
+      UI.mostrarCargando(false);
+      alert('No se pudo conectar con la base de datos.');
     });
   },
 
   puedeEditar() {
-    return this.usuarioActual && this.usuarioActual.rol !== 'consulta';
+    return this.usuarioActual !== null;
   }
 };
 

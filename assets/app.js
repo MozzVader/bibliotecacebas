@@ -26,3 +26,6 @@ window.Usuarios  = Usuarios;
 window.Vencidos  = Vencidos;
 window.Reportes  = Reportes;
 window.Config    = Config;
+
+// Inicializar auth (detecta sesión previa)
+Auth.init();
