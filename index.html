@@ -22,7 +22,7 @@
       <div id="form-login">
         <div id="login-error" class="alert alert-danger"></div>
         <div class="form-group">
-          <label>Usuario</label>
+          <label>Email</label>
           <input class="form-input" id="login-usuario" type="email" placeholder="usuario@correo.com">
         </div>
         <div class="form-group" style="margin-top:12px">
@@ -35,12 +35,16 @@
         </p>
       </div>
 
-      <!-- FORMULARIO REGISTRO -->
+      <!-- FORMULARIO REGISTRO (auto-registro: rol por defecto = Alumno) -->
       <div id="form-registro" style="display:none">
         <div id="registro-error" class="alert alert-danger"></div>
         <div class="form-group">
           <label>Nombre completo *</label>
           <input class="form-input" id="reg-nombre" type="text" placeholder="Juan Pérez">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>DNI *</label>
+          <input class="form-input" id="reg-dni" type="text" placeholder="Ej: 30407325" inputmode="numeric">
         </div>
         <div class="form-group" style="margin-top:12px">
           <label>Email *</label>
@@ -53,20 +57,6 @@
         <div class="form-group" style="margin-top:12px">
           <label>Repetir contraseña *</label>
           <input class="form-input" id="reg-password2" type="password" placeholder="••••••">
-        </div>
-        <div class="form-row" style="margin-top:12px;gap:8px">
-          <div class="form-group" style="flex:1">
-            <label>Tipo</label>
-            <select class="form-select" id="reg-tipo">
-              <option>Alumno</option>
-              <option>Docente</option>
-              <option>Administrativo</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex:1">
-            <label>Curso / Rol</label>
-            <input class="form-input" id="reg-curso" type="text" placeholder="Ej: 3° B">
-          </div>
         </div>
         <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.registrar()">Crear cuenta</button>
         <p class="login-hint">
@@ -249,17 +239,17 @@
         <div class="section" id="sec-usuarios">
           <div class="page-header">
             <h2>Usuarios</h2>
-            <p>Alumnos y docentes registrados</p>
+            <p>Gestión de alumnos, docentes y administrativos</p>
           </div>
           <div id="alert-usuario" class="alert alert-success"></div>
           <div class="search-bar">
-            <input type="text" id="buscar-usuario" placeholder="Buscar usuario..." oninput="Usuarios.render()">
+            <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios.render()">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
           </div>
           <div class="table-card">
             <table>
               <thead>
-                <tr><th>Nombre</th><th>Tipo</th><th>Curso/Rol</th><th>Préstamos activos</th><th></th></tr>
+                <tr><th>Nombre</th><th>Tipo</th><th>DNI</th><th>Cuenta</th><th>Préstamos</th><th></th></tr>
               </thead>
               <tbody id="tabla-usuarios"></tbody>
             </table>
@@ -324,22 +314,11 @@
             </div>
             <div id="alert-config" class="alert alert-success" style="margin-top:1rem"></div>
             <div class="config-hint">
-              <p>💡 <strong>Registro de usuarios:</strong> Los usuarios pueden crear su propia cuenta
-              desde la pantalla de login (boton "Registrate"). Al registrarse, se les asigna
-              rol <strong>"Solo lectura"</strong> por defecto. Desde esta seccion podes cambiar
-              el rol a <strong>Bibliotecario</strong> o <strong>Ayudante</strong> segun corresponda.
-              El primer usuario (administrador) debe crearse desde Firebase Console.</p>
-            </div>
-            <!-- Gestion de roles -->
-            <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--gris-200)">
-              <h3 style="font-size:16px;font-weight:700;color:var(--texto);margin-bottom:4px">Roles de usuarios</h3>
-              <p style="font-size:13px;color:var(--texto-muted);margin-bottom:1rem">
-                Asigna permisos a los usuarios que acceden al sistema. Los roles son:
-                <strong>Bibliotecario</strong> (acceso total),
-                <strong>Ayudante</strong> (prestamos y devoluciones),
-                <strong>Solo lectura</strong> (solo consulta).
-              </p>
-              <div id="roles-container">Cargando...</div>
+              <p><strong>Roles del sistema:</strong> El rol se determina por el tipo de usuario
+              (Administrativo, Docente o Alumno). Los usuarios pueden crear su propia cuenta
+              desde la pantalla de login y se les asigna rol <strong>"Alumno"</strong> por defecto.
+              Desde la sección <strong>"Usuarios"</strong>, un administrativo puede cambiar el tipo/rol
+              de cualquier usuario.</p>
             </div>
           </div>
         </div>
@@ -398,10 +377,11 @@
     </div>
   </div>
 
-  <!-- Modal: Nuevo usuario -->
+  <!-- Modal: Nuevo / Editar usuario -->
   <div class="overlay" id="modal-usuario">
     <div class="modal">
-      <h3>👤 Agregar usuario</h3>
+      <h3 id="modal-usuario-titulo">👤 Agregar usuario</h3>
+      <div id="modal-usuario-error" class="alert alert-danger" style="margin-bottom:12px"></div>
       <div class="form-grid">
         <div class="form-group">
           <label>Nombre completo *</label>
@@ -409,7 +389,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Tipo</label>
+            <label>Tipo *</label>
             <select class="form-select" id="usu-tipo">
               <option>Alumno</option>
               <option>Docente</option>
@@ -417,14 +397,26 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Curso / Rol</label>
-            <input class="form-input" id="usu-curso" type="text" placeholder="Ej: 3° B">
+            <label>DNI *</label>
+            <input class="form-input" id="usu-dni" type="text" placeholder="Ej: 30407325" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" id="usu-email-group">
+            <label id="usu-email-label">Email</label>
+            <input class="form-input" id="usu-email" type="email" placeholder="Opcional">
+            <small id="usu-email-hint" style="color:var(--texto-muted);font-size:11px;display:none"></small>
+          </div>
+          <div class="form-group" id="usu-password-group">
+            <label id="usu-password-label">Contraseña</label>
+            <input class="form-input" id="usu-password" type="password" placeholder="Opcional">
+            <small id="usu-password-hint" style="color:var(--texto-muted);font-size:11px;display:none"></small>
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="UI.cerrarModal('modal-usuario')">Cancelar</button>
-        <button class="btn btn-primary" onclick="Usuarios.agregar()">Guardar usuario</button>
+        <button class="btn btn-primary" id="btn-guardar-usuario" onclick="Usuarios.agregar()">Guardar usuario</button>
       </div>
     </div>
   </div>
