@@ -232,21 +232,21 @@
             <p>Buscá y gestioná el inventario de la biblioteca</p>
           </div>
           <div id="alert-libro" class="alert alert-success"></div>
-          <div class="search-bar">
-            <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Catalogo._page=1; Catalogo.render()">
-            <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
-          </div>
-          <!-- FEATURE 3: Filter bar -->
-          <div class="filter-bar">
-            <select class="filter-select" id="filtro-genero" onchange="Catalogo._filtroGenero=this.value; Catalogo._page=1; Catalogo.render()">
-              <option value="">Todos los géneros</option>
-              <option>Literatura</option><option>Novela</option><option>Texto escolar</option>
-              <option>Historia</option><option>Ciencias</option><option>Matemática</option>
-              <option>Arte</option><option>Otro</option>
-            </select>
-          </div>
-          <!-- END FEATURE 3 -->
           <div class="table-card">
+            <div class="search-bar">
+              <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Catalogo._page=1; Catalogo.render()">
+              <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
+            </div>
+            <!-- FEATURE 3: Filter bar -->
+            <div class="filter-bar">
+              <select class="filter-select" id="filtro-genero" onchange="Catalogo._filtroGenero=this.value; Catalogo._page=1; Catalogo.render()">
+                <option value="">Todos los géneros</option>
+                <option>Literatura</option><option>Novela</option><option>Texto escolar</option>
+                <option>Historia</option><option>Ciencias</option><option>Matemática</option>
+                <option>Arte</option><option>Otro</option>
+              </select>
+            </div>
+            <!-- END FEATURE 3 -->
             <!-- FEATURE 5: Sortable headers + table id -->
             <table id="tabla-catalogo-wrapper">
               <thead>
@@ -276,17 +276,17 @@
           <div class="toolbar">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
           </div>
-          <!-- FEATURE 3: Filter bar -->
-          <div class="filter-bar">
-            <select class="filter-select" id="filtro-estado" onchange="Prestamos._filtroEstado=this.value; Prestamos._page=1; Prestamos.render()">
-              <option value="">Todos los estados</option>
-              <option value="activo">Activo</option>
-              <option value="devuelto">Devuelto</option>
-              <option value="vencido">Vencido</option>
-            </select>
-          </div>
-          <!-- END FEATURE 3 -->
           <div class="table-card">
+            <!-- FEATURE 3: Filter bar -->
+            <div class="filter-bar">
+              <select class="filter-select" id="filtro-estado" onchange="Prestamos._filtroEstado=this.value; Prestamos._page=1; Prestamos.render()">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activo</option>
+                <option value="devuelto">Devuelto</option>
+                <option value="vencido">Vencido</option>
+              </select>
+            </div>
+            <!-- END FEATURE 3 -->
             <!-- FEATURE 5: Sortable headers + table id -->
             <table id="tabla-prestamos-wrapper">
               <thead>
@@ -313,21 +313,21 @@
             <p>Gestión de alumnos, docentes y administrativos</p>
           </div>
           <div id="alert-usuario" class="alert alert-success"></div>
-          <div class="search-bar">
-            <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios._page=1; Usuarios.render()">
-            <button class="btn btn-primary" onclick="Usuarios._prepararModalAgregar(); UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
-          </div>
-          <!-- FEATURE 3: Filter bar -->
-          <div class="filter-bar">
-            <select class="filter-select" id="filtro-tipo" onchange="Usuarios._filtroTipo=this.value; Usuarios._page=1; Usuarios.render()">
-              <option value="">Todos los tipos</option>
-              <option>Alumno</option>
-              <option>Docente</option>
-              <option>Administrativo</option>
-            </select>
-          </div>
-          <!-- END FEATURE 3 -->
           <div class="table-card">
+            <div class="search-bar">
+              <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios._page=1; Usuarios.render()">
+              <button class="btn btn-primary" onclick="Usuarios._prepararModalAgregar(); UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
+            </div>
+            <!-- FEATURE 3: Filter bar -->
+            <div class="filter-bar">
+              <select class="filter-select" id="filtro-tipo" onchange="Usuarios._filtroTipo=this.value; Usuarios._page=1; Usuarios.render()">
+                <option value="">Todos los tipos</option>
+                <option>Alumno</option>
+                <option>Docente</option>
+                <option>Administrativo</option>
+              </select>
+            </div>
+            <!-- END FEATURE 3 -->
             <!-- FEATURE 5: Sortable headers + table id -->
             <table id="tabla-usuarios-wrapper">
               <thead>
