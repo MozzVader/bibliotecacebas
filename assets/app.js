@@ -201,6 +201,178 @@ const UI = {
 
 
 // ══════════════════════════════════════════════════════════════
+//  ROLES — Sistema de permisos
+// ══════════════════════════════════════════════════════════════
+//  Roles disponibles:
+//    "bibliotecario" — acceso total (admin)
+//    "ayudante"       — puede ver catalogo, registrar/Devolver
+//                       prestamos y ver reportes. No puede
+//                       gestionar usuarios ni configuracion.
+//    "solo_lectura"   — solo puede ver el catalogo y reportes.
+//
+//  Se guardan en Firestore:
+//    Coleccion: "roles"
+//    Documento:  { UID del usuario en Auth }
+//    Campo:      { rol: "bibliotecario" | "ayudante" | "solo_lectura" }
+//
+//  Si un usuario no tiene documento en "roles", se le asigna
+//  "bibliotecario" por defecto (primer usuario o compatibilidad).
+// ══════════════════════════════════════════════════════════════
+
+const Roles = {
+  // Rol actual del usuario logueado
+  actual: "bibliotecario",
+
+  // Definicion de permisos por seccion
+  // true = acceso completo, false = oculto del sidebar
+  permisosSidebar: {
+    bibliotecario: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true },
+    ayudante:      { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false },
+    solo_lectura:  { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false }
+  },
+
+  // Que acciones puede hacer cada rol (escritura)
+  permisosAccion: {
+    bibliotecario: { agregarLibro: true, editarLibro: true, eliminarLibro: true, agregarUsuario: true, editarUsuario: true, eliminarUsuario: true, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: true },
+    ayudante:      { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: true, devolverPrestamo: true, guardarConfig: false },
+    solo_lectura:  { agregarLibro: false, editarLibro: false, eliminarLibro: false, agregarUsuario: false, editarUsuario: false, eliminarUsuario: false, registrarPrestamo: false, devolverPrestamo: false, guardarConfig: false }
+  },
+
+  // Etiquetas legibles
+  etiquetas: {
+    bibliotecario: "Bibliotecario",
+    ayudante: "Ayudante",
+    solo_lectura: "Solo lectura"
+  },
+
+  /**
+   * Carga el rol del usuario desde Firestore.
+   * Si no tiene documento, le asigna "bibliotecario" por defecto.
+   */
+  async cargar(uid) {
+    try {
+      const docSnap = await getDoc(doc(db, "roles", uid));
+      if (docSnap.exists()) {
+        this.actual = docSnap.data().rol || "bibliotecario";
+      } else {
+        // Primer usuario: asignar bibliotecario por defecto
+        this.actual = "bibliotecario";
+      }
+    } catch (error) {
+      console.error("Error al cargar rol:", error);
+      this.actual = "bibliotecario";
+    }
+  },
+
+  /**
+   * Verifica si el rol actual tiene permiso para una accion
+   */
+  puede(accion) {
+    return this.permisosAccion[this.actual]?.[accion] ?? false;
+  },
+
+  /**
+   * Verifica si el rol actual puede ver una seccion
+   */
+  puedeVer(seccion) {
+    return this.permisosSidebar[this.actual]?.[seccion] ?? false;
+  },
+
+  /**
+   * Aplica los permisos al sidebar: oculta secciones no permitidas
+   */
+  aplicarSidebar() {
+    document.querySelectorAll(".nav-item[data-sec]").forEach(item => {
+      const sec = item.dataset.sec;
+      if (!this.puedeVer(sec)) {
+        item.style.display = "none";
+      } else {
+        item.style.display = "";
+      }
+    });
+    // Ocultar divisores si todos los items de esa seccion estan ocultos
+    document.querySelectorAll(".nav-section").forEach(section => {
+      const items = section.querySelectorAll(".nav-item");
+      const visibleItems = Array.from(items).filter(i => i.style.display !== "none");
+      const divider = section.nextElementSibling;
+      if (visibleItems.length === 0) {
+        section.style.display = "none";
+        if (divider && divider.classList.contains("nav-divider")) {
+          divider.style.display = "none";
+        }
+      } else {
+        section.style.display = "";
+        if (divider && divider.classList.contains("nav-divider")) {
+          divider.style.display = "";
+        }
+      }
+    });
+  },
+
+  /**
+   * Aplica permisos a botones de accion (agregar, editar, etc)
+   * Se llama despues de cada render de tabla
+   */
+  aplicarBotones(seccion) {
+    switch (seccion) {
+      case "catalogo":
+        // Ocultar boton "Agregar libro" si no tiene permiso
+        const btnAgregarLibro = document.querySelector("#sec-catalogo .search-bar .btn-primary");
+        if (btnAgregarLibro) btnAgregarLibro.style.display = this.puede("agregarLibro") ? "" : "none";
+        // Ocultar botones de editar/eliminar en cada fila
+        document.querySelectorAll("#tabla-catalogo .btn-sm, #tabla-catalogo .btn-danger").forEach(btn => {
+          if (btn.textContent.trim() === "" || btn.title === "Editar" || btn.title === "Eliminar") {
+            btn.style.display = this.puede("editarLibro") ? "" : "none";
+          }
+        });
+        break;
+
+      case "usuarios":
+        const btnAgregarUsu = document.querySelector("#sec-usuarios .search-bar .btn-primary");
+        if (btnAgregarUsu) btnAgregarUsu.style.display = this.puede("agregarUsuario") ? "" : "none";
+        document.querySelectorAll("#tabla-usuarios .btn-sm, #tabla-usuarios .btn-danger").forEach(btn => {
+          if (btn.title === "Editar" || btn.title === "Eliminar") {
+            btn.style.display = this.puede("editarUsuario") ? "" : "none";
+          }
+        });
+        break;
+
+      case "prestamos":
+        const btnAgregarPres = document.querySelector("#sec-prestamos .toolbar .btn-primary");
+        if (btnAgregarPres) btnAgregarPres.style.display = this.puede("registrarPrestamo") ? "" : "none";
+        // Ocultar botones "Devolver" si no puede
+        document.querySelectorAll("#tabla-prestamos .btn-sm.btn-primary").forEach(btn => {
+          btn.style.display = this.puede("devolverPrestamo") ? "" : "none";
+        });
+        break;
+    }
+  },
+
+  /**
+   * Lista todos los roles con UID desde Firestore (para Config)
+   */
+  async obtenerTodos() {
+    const snapshot = await getDocs(collection(db, "roles"));
+    return snapshot.docs.map(d => ({ uid: d.id, ...d.data() }));
+  },
+
+  /**
+   * Guarda o actualiza el rol de un usuario
+   */
+  async guardar(uid, rol) {
+    await setDoc(doc(db, "roles", uid), { rol }, { merge: true });
+  },
+
+  /**
+   * Elimina el documento de rol de un usuario
+   */
+  async eliminar(uid) {
+    await deleteDoc(doc(db, "roles", uid));
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════
 //  AUTH — Autenticacion con Firebase
 // ══════════════════════════════════════════════════════════════
 
@@ -270,21 +442,27 @@ const Auth = {
    * Se ejecuta automaticamente al cargar la app.
    */
   init() {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       const loginScreen = document.getElementById("pantalla-login");
       const appScreen = document.getElementById("app");
 
       if (user) {
-        // Usuario autenticado: mostrar app
+        // Cargar rol del usuario
+        await Roles.cargar(user.uid);
+        // Aplicar permisos al sidebar
+        Roles.aplicarSidebar();
+
+        // Mostrar app
         loginScreen.style.display = "none";
         appScreen.classList.remove("app-hidden");
         appScreen.classList.add("app-visible");
 
-        // Datos del usuario en el header
+        // Datos del usuario en el header (mostrar rol)
         const email = user.email || "";
         const initials = email.substring(0, 2).toUpperCase();
+        const rolEtiqueta = Roles.etiquetas[Roles.actual] || Roles.actual;
         document.getElementById("avatar-initials").textContent = initials;
-        document.getElementById("header-username").textContent = email;
+        document.getElementById("header-username").textContent = `${email} (${rolEtiqueta})`;
 
         // Mostrar fecha de hoy en el panel principal
         document.getElementById("fecha-hoy").textContent =
@@ -372,6 +550,7 @@ const Catalogo = {
       }
 
       tbody.innerHTML = html;
+      Roles.aplicarBotones("catalogo");
     } catch (error) {
       console.error("Error al cargar catalogo:", error);
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
@@ -653,6 +832,7 @@ const Usuarios = {
       }
 
       tbody.innerHTML = html;
+      Roles.aplicarBotones("usuarios");
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#B42318">
@@ -895,6 +1075,7 @@ const Prestamos = {
       }
 
       tbody.innerHTML = html;
+      Roles.aplicarBotones("prestamos");
     } catch (error) {
       console.error("Error al cargar prestamos:", error);
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
@@ -1463,6 +1644,8 @@ const Config = {
         document.getElementById("cfg-dias").value = data.diasPrestamo || 7;
         document.getElementById("cfg-biblio").value = data.nombreBibliotecario || "";
       }
+      // Cargar tabla de roles
+      this.cargarRoles();
     } catch (error) {
       console.error("Error al cargar configuracion:", error);
     }
@@ -1508,6 +1691,106 @@ const Config = {
       console.error("Error al obtener dias de prestamo:", error);
     }
     return 7; // Valor por defecto
+  },
+
+  /**
+   * Carga la lista de usuarios con roles en la seccion de config
+   */
+  async cargarRoles() {
+    const container = document.getElementById("roles-container");
+    if (!container) return;
+
+    try {
+      const rolesSnap = await Roles.obtenerTodos();
+
+      if (rolesSnap.length === 0) {
+        container.innerHTML = '<p style="color:var(--texto-muted);font-size:13px">No hay roles asignados. Todos los usuarios tienen acceso de bibliotecario por defecto.</p>';
+        return;
+      }
+
+      let html = `
+        <table style="width:100%;margin-top:1rem;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Email (UID)</th>
+              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Rol</th>
+              <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--texto-muted);padding:8px 12px;background:var(--gris-100);border-bottom:1px solid var(--gris-200)">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      rolesSnap.forEach(r => {
+        const rolBadge = {
+          bibliotecario: "badge-verde",
+          ayudante: "badge-azul",
+          solo_lectura: "badge-amarillo"
+        }[r.rol] || "badge-azul";
+        const rolLabel = Roles.etiquetas[r.rol] || r.rol;
+
+        html += `
+            <tr>
+              <td style="padding:10px 12px;font-size:12px;color:var(--texto-medio);border-bottom:1px solid var(--gris-200);font-family:monospace">${r.uid}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--gris-200)">
+                <span class="badge ${rolBadge}">${rolLabel}</span>
+              </td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--gris-200)">
+                <select class="form-select" style="width:auto;padding:4px 8px;font-size:12px" onchange="Config.cambiarRol('${r.uid}', this.value)">
+                  <option value="bibliotecario" ${r.rol === "bibliotecario" ? "selected" : ""}>Bibliotecario</option>
+                  <option value="ayudante" ${r.rol === "ayudante" ? "selected" : ""}>Ayudante</option>
+                  <option value="solo_lectura" ${r.rol === "solo_lectura" ? "selected" : ""}>Solo lectura</option>
+                </select>
+                <button class="btn btn-sm btn-danger" style="margin-left:6px" onclick="Config.eliminarRol('${r.uid}')">Quitar</button>
+              </td>
+            </tr>`;
+      });
+
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    } catch (error) {
+      console.error("Error al cargar roles:", error);
+      container.innerHTML = '<p style="color:#B42318;font-size:13px">Error al cargar roles.</p>';
+    }
+  },
+
+  /**
+   * Cambia el rol de un usuario
+   */
+  async cambiarRol(uid, nuevoRol) {
+    Utils.loading(true);
+    try {
+      await Roles.guardar(uid, nuevoRol);
+      UI.mostrarAlerta("alert-config", `Rol actualizado a "${Roles.etiquetas[nuevoRol]}".`);
+      // Si cambio el propio rol, recargar
+      if (auth.currentUser && uid === auth.currentUser.uid) {
+        Roles.actual = nuevoRol;
+        Roles.aplicarSidebar();
+        const email = auth.currentUser.email || "";
+        document.getElementById("header-username").textContent = `${email} (${Roles.etiquetas[nuevoRol]})`;
+      }
+    } catch (error) {
+      console.error("Error al cambiar rol:", error);
+      UI.mostrarAlerta("alert-config", "Error al cambiar el rol.", "danger");
+    } finally {
+      Utils.loading(false);
+    }
+  },
+
+  /**
+   * Elimina el rol asignado de un usuario (vuelve a bibliotecario por defecto)
+   */
+  async eliminarRol(uid) {
+    if (!confirm("Al eliminar el rol, el usuario vuelve a ser Bibliotecario por defecto.")) return;
+    Utils.loading(true);
+    try {
+      await Roles.eliminar(uid);
+      UI.mostrarAlerta("alert-config", "Rol eliminado. El usuario ahora es Bibliotecario por defecto.");
+      this.cargarRoles();
+    } catch (error) {
+      console.error("Error al eliminar rol:", error);
+      UI.mostrarAlerta("alert-config", "Error al eliminar el rol.", "danger");
+    } finally {
+      Utils.loading(false);
+    }
   }
 };
 
@@ -1523,6 +1806,7 @@ window.Catalogo = Catalogo;
 window.Usuarios = Usuarios;
 window.Prestamos = Prestamos;
 window.Config = Config;
+window.Roles = Roles;
 
 // Permitir login con Enter
 document.getElementById("login-password").addEventListener("keypress", (e) => {
