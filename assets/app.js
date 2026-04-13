@@ -8,7 +8,7 @@ import {
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
   serverTimestamp, increment,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
@@ -378,6 +378,106 @@ const Roles = {
 
 const Auth = {
   /**
+   * Muestra el formulario de registro y oculta el de login
+   */
+  mostrarRegistro() {
+    document.getElementById("form-login").style.display = "none";
+    document.getElementById("form-registro").style.display = "";
+    document.getElementById("login-subtitle-text").textContent = "Creá tu cuenta";
+    document.getElementById("login-error").className = "alert alert-danger";
+    document.getElementById("registro-error").className = "alert alert-danger";
+  },
+
+  /**
+   * Muestra el formulario de login y oculta el de registro
+   */
+  mostrarLogin() {
+    document.getElementById("form-login").style.display = "";
+    document.getElementById("form-registro").style.display = "none";
+    document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
+    document.getElementById("registro-error").className = "alert alert-danger";
+  },
+
+  /**
+   * Registra un nuevo usuario (Auth + Firestore + Rol)
+   * El usuario se auto-registra y queda logueado.
+   * Se le asigna rol "solo_lectura" por defecto.
+   */
+  async registrar() {
+    const nombre = document.getElementById("reg-nombre").value.trim();
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
+    const password2 = document.getElementById("reg-password2").value;
+    const tipo = document.getElementById("reg-tipo").value;
+    const curso = document.getElementById("reg-curso").value.trim();
+    const errorEl = document.getElementById("registro-error");
+
+    // Validaciones
+    if (!nombre) {
+      errorEl.textContent = "El nombre es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (!email) {
+      errorEl.textContent = "El email es obligatorio.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (password.length < 6) {
+      errorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+    if (password !== password2) {
+      errorEl.textContent = "Las contraseñas no coinciden.";
+      errorEl.className = "alert alert-danger show";
+      return;
+    }
+
+    Utils.loading(true);
+    errorEl.className = "alert alert-danger";
+
+    try {
+      // 1) Crear la cuenta en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      // 2) Crear documento en Firestore coleccion "usuarios"
+      await addDoc(collection(db, "usuarios"), {
+        authUid: uid,  // Referencia al UID de Auth
+        nombre,
+        email,
+        tipo,
+        curso: curso || "",
+        createdAt: serverTimestamp()
+      });
+
+      // 3) Asignar rol por defecto (solo_lectura)
+      await setDoc(doc(db, "roles", uid), { rol: "solo_lectura" });
+
+      // La sesion queda iniciada automaticamente.
+      // onAuthStateChanged se encarga del resto.
+    } catch (error) {
+      let msg = "Error al crear la cuenta.";
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          msg = "Ya existe una cuenta con ese email.";
+          break;
+        case "auth/invalid-email":
+          msg = "El formato del email no es valido.";
+          break;
+        case "auth/weak-password":
+          msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
+          break;
+      }
+      errorEl.textContent = msg;
+      errorEl.className = "alert alert-danger show";
+    } finally {
+      Utils.loading(false);
+    }
+  },
+
+  /**
    * Inicia sesion con email y password
    */
   async login() {
@@ -483,6 +583,14 @@ const Auth = {
         document.getElementById("login-usuario").value = "";
         document.getElementById("login-password").value = "";
         document.getElementById("login-error").className = "alert alert-danger";
+        // Limpiar formulario de registro si estaba abierto
+        this.mostrarLogin();
+        document.getElementById("reg-nombre").value = "";
+        document.getElementById("reg-email").value = "";
+        document.getElementById("reg-password").value = "";
+        document.getElementById("reg-password2").value = "";
+        document.getElementById("reg-curso").value = "";
+        document.getElementById("reg-tipo").selectedIndex = 0;
       }
     });
   }
@@ -1814,6 +1922,14 @@ document.getElementById("login-password").addEventListener("keypress", (e) => {
 });
 document.getElementById("login-usuario").addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.login();
+});
+
+// Permitir registro con Enter
+document.getElementById("reg-password2").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") Auth.registrar();
+});
+document.getElementById("reg-curso").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") Auth.registrar();
 });
 
 // Cerrar modales con Escape
