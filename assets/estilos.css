@@ -83,6 +83,10 @@
 
   /* Dark mode toggle icon */
   --dm-icon-opacity: 1;
+
+  /* ── Inputs: default (light theme) ── */
+  --input-bg:        var(--glass-bg-solid);
+  --input-border:    var(--borde);
 }
 
 /* ── Dark theme ── */
@@ -154,6 +158,10 @@
 
   /* Verde claro dark */
   --verde-claro: rgba(29, 158, 117, 0.12);
+
+  /* ── Inputs: glass style to match table cards ── */
+  --input-bg:        var(--glass-bg);
+  --input-border:    var(--glass-border);
 }
 
 body {
@@ -533,10 +541,12 @@ tr:hover td { background: var(--td-hover); }
 .search-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; }
 .form-input, .form-select {
   padding: 9px 14px;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
   font-size: 15px; font-family: 'DM Sans', 'Montserrat', sans-serif;
-  background: var(--glass-bg-solid);
+  background: var(--input-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--texto); outline: none;
   width: 100%;
   transition: all 0.18s;
@@ -730,11 +740,13 @@ th.sortable.desc .sort-arrow {
 }
 .filter-select {
   padding: 9px 14px;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
   font-size: 14px;
   font-family: 'DM Sans', 'Montserrat', sans-serif;
-  background: var(--glass-bg-solid);
+  background: var(--input-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--texto);
   outline: none;
   width: auto;
@@ -767,9 +779,11 @@ th.sortable.desc .sort-arrow {
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 4px;
-  border: 1px solid var(--borde);
-  background: var(--glass-bg-solid);
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--texto-medio);
   cursor: pointer;
   transition: all 0.15s;
@@ -902,11 +916,13 @@ th.sortable.desc .sort-arrow {
 }
 .combobox-input {
   padding: 9px 14px;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
   font-size: 15px;
   font-family: 'DM Sans', 'Montserrat', sans-serif;
-  background: var(--glass-bg-solid);
+  background: var(--input-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--texto);
   outline: none;
   width: 100%;
@@ -928,9 +944,11 @@ th.sortable.desc .sort-arrow {
   max-height: 200px;
   overflow-y: auto;
   background: var(--glass-bg-solid);
-  border: 1px solid var(--borde);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--input-border);
   border-top: none;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 8px 8px;
   box-shadow: var(--glass-shadow);
   display: none;
 }
