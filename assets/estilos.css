@@ -87,6 +87,7 @@
 
 /* ── Dark theme ── */
 [data-theme="dark"] {
+  color-scheme: dark;
   --fondo:           #0F1117;
   --fondo-degradado: linear-gradient(135deg, #0F1117 0%, #141720 40%, #111918 100%);
   --glass-bg:        rgba(30, 34, 43, 0.72);
