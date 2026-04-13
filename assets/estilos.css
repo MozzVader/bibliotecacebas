@@ -83,12 +83,10 @@
 
   /* Dark mode toggle icon */
   --dm-icon-opacity: 1;
-
 }
 
 /* ── Dark theme ── */
 [data-theme="dark"] {
-  color-scheme: dark;
   --fondo:           #0F1117;
   --fondo-degradado: linear-gradient(135deg, #0F1117 0%, #141720 40%, #111918 100%);
   --glass-bg:        rgba(30, 34, 43, 0.72);
@@ -155,7 +153,6 @@
 
   /* Verde claro dark */
   --verde-claro: rgba(29, 158, 117, 0.12);
-
 }
 
 body {
@@ -532,11 +529,7 @@ tr:hover td { background: var(--td-hover); }
 /* ════════════════════════════════════════════
    FORMULARIOS
    ════════════════════════════════════════════ */
-.search-bar {
-  display: flex; gap: 8px;
-  padding: 12px 1.25rem;
-  border-bottom: 1px solid var(--borde-suave);
-}
+.search-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; }
 .form-input, .form-select {
   padding: 9px 14px;
   border: 1px solid var(--borde);
@@ -562,22 +555,6 @@ tr:hover td { background: var(--td-hover); }
   color: var(--texto-medio); text-transform: uppercase;
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-/* ── Dark mode: inputs blend with parent card ── */
-[data-theme="dark"] .form-input,
-[data-theme="dark"] .form-select,
-[data-theme="dark"] .filter-select {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--borde-suave);
-}
-[data-theme="dark"] .form-input:focus,
-[data-theme="dark"] .form-select:focus,
-[data-theme="dark"] .filter-select:focus {
-  background: rgba(255, 255, 255, 0.08);
-}
-[data-theme="dark"] .filter-bar {
-  padding-bottom: 8px;
-}
 
 /* ════════════════════════════════════════════
    MODALES (Glass)
@@ -789,7 +766,7 @@ th.sortable.desc .sort-arrow {
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid var(--borde);
   background: var(--glass-bg-solid);
   color: var(--texto-medio);
