@@ -543,7 +543,28 @@ tr:hover td { background: var(--td-hover); }
 .form-input::placeholder {
   color: var(--texto-muted);
 }
-.search-bar input { flex: 1; }
+.search-bar input {
+  flex: 1;
+  padding: 9px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--texto);
+  outline: none;
+  box-shadow: var(--glass-shadow);
+  transition: all 0.18s;
+}
+.search-bar input::placeholder {
+  color: var(--texto-muted);
+}
+.search-bar input:focus {
+  border-color: var(--verde);
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.1), var(--glass-shadow);
+}
 .form-input:focus, .form-select:focus {
   border-color: var(--verde);
   box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.1);
