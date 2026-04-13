@@ -101,6 +101,77 @@ const Utils = {
   _escAttr(str) {
     if (!str) return "";
     return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+  },
+
+  // ══════════════════════════════════════════════════════════════
+  //  UTILIDADES PARA ORDENAMIENTO Y PAGINACION (Feature 3 & 5)
+  // ══════════════════════════════════════════════════════════════
+
+  sortData(data, column, direction, getValue) {
+    return [...data].sort((a, b) => {
+      let valA = getValue(a, column);
+      let valB = getValue(b, column);
+      if (valA == null) valA = '';
+      if (valB == null) valB = '';
+      if (typeof valA === 'string') { valA = valA.toLowerCase(); }
+      if (typeof valB === 'string') { valB = valB.toLowerCase(); }
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  },
+
+  initSortableHeaders(tableId, onSort) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    table.querySelectorAll('th.sortable').forEach(th => {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', () => {
+        const column = th.dataset.sort;
+        const isAsc = th.classList.contains('asc');
+        const newDir = isAsc ? 'desc' : 'asc';
+        table.querySelectorAll('th').forEach(t => {
+          t.classList.remove('asc', 'desc');
+          const arrow = t.querySelector('.sort-arrow');
+          if (arrow) arrow.textContent = '';
+        });
+        th.classList.add(newDir);
+        const arrow = th.querySelector('.sort-arrow');
+        if (arrow) arrow.textContent = newDir === 'asc' ? ' \u2191' : ' \u2193';
+        onSort(column, newDir);
+      });
+    });
+  },
+
+  renderPagination(containerId, totalItems, currentPage, perPage, onPageChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const totalPages = Math.ceil(totalItems / perPage);
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+    const start = (currentPage - 1) * perPage + 1;
+    const end = Math.min(currentPage * perPage, totalItems);
+
+    let html = '<div class="pagination">';
+    html += `<span class="pagination-info">${start}-${end} de ${totalItems}</span>`;
+    html += '<div class="pagination-buttons">';
+    html += `<button class="pagination-btn" ${currentPage <= 1 ? 'disabled' : ''} data-page="${currentPage - 1}">Anterior</button>`;
+
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    html += `<button class="pagination-btn" ${currentPage >= totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Siguiente</button>`;
+    html += '</div></div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.pagination-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => onPageChange(parseInt(btn.dataset.page)));
+    });
   }
 };
 
@@ -118,14 +189,18 @@ const UI = {
     if (target) target.classList.add("active");
 
     switch (seccion) {
-      case "inicio":    Dashboard.render(); break;
-      case "catalogo":  Catalogo.render(); break;
-      case "prestamos": Prestamos.render(); break;
-      case "usuarios":  Usuarios.render(); break;
-      case "vencidos":  Vencidos.render(); break;
-      case "reportes":  Reportes.render(); break;
-      case "config":    Config.cargar(); break;
+      case "inicio":      Dashboard.render(); break;
+      case "catalogo":    Catalogo.render(); break;
+      case "prestamos":   Prestamos.render(); break;
+      case "usuarios":    Usuarios.render(); break;
+      case "vencidos":    Vencidos.render(); break;
+      case "reportes":    Reportes.render(); break;
+      case "config":      Config.cargar(); break;
+      case "mihistorial": MiHistorial.render(); break;
     }
+
+    // Feature 1: Close notification dropdown on navigation
+    Notificaciones.cerrar();
   },
 
   abrirModal(id) {
@@ -205,9 +280,9 @@ const Roles = {
 
   // Permisos de visibilidad en el sidebar
   permisosSidebar: {
-    administrativo: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true },
-    docente:        { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false },
-    alumno:         { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false }
+    administrativo: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true, mihistorial: true },
+    docente:        { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false, mihistorial: true },
+    alumno:         { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false, mihistorial: true }
   },
 
   // Permisos de escritura (acciones)
@@ -519,6 +594,8 @@ const Auth = {
         // Cargar datos iniciales
         Dashboard.render();
         Vencidos.actualizarBadge();
+        // Feature 1: Load notifications on login
+        Notificaciones.cargar();
       } else {
         // Sin autenticacion: mostrar login
         loginScreen.style.display = "";
@@ -542,21 +619,29 @@ const Auth = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  CATALOGO — CRUD de Libros
+//  CATALOGO — CRUD de Libros (with filter, sort, pagination)
 // ══════════════════════════════════════════════════════════════
 
 const Catalogo = {
   coleccion: "libros",
+  _data: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+  _page: 1,
+  _perPage: 20,
+  _filtroGenero: "",
 
   async render() {
     const tbody = document.getElementById("tabla-catalogo");
     const filtro = (document.getElementById("buscar-libro")?.value || "").toLowerCase();
+    const filtroGenero = document.getElementById("filtro-genero")?.value || "";
 
     try {
       let q = query(collection(db, this.coleccion), orderBy("titulo", "asc"));
       const snapshot = await getDocs(q);
 
-      let html = "";
+      // Build data array
+      this._data = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
@@ -566,38 +651,77 @@ const Catalogo = {
           const texto = `${data.titulo} ${data.autor} ${data.isbn}`.toLowerCase();
           if (!texto.includes(filtro)) return;
         }
+        if (filtroGenero && (data.genero || "") !== filtroGenero) return;
 
+        this._data.push({ id, ...data, disponibles });
+      });
+
+      // Sort
+      let sorted = [...this._data];
+      if (this._sortColumn) {
+        sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+          if (col === 'titulo') return item.titulo || '';
+          if (col === 'autor') return item.autor || '';
+          if (col === 'genero') return item.genero || '';
+          if (col === 'ejemplares') return item.ejemplares || 0;
+          if (col === 'disponibles') return item.disponibles || 0;
+          return '';
+        });
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(sorted.length / this._perPage);
+      if (this._page > totalPages) this._page = 1;
+      const start = (this._page - 1) * this._perPage;
+      const pageData = sorted.slice(start, start + this._perPage);
+
+      let html = "";
+      pageData.forEach((item) => {
         let badgeHTML;
-        if (disponibles <= 0) {
+        if (item.disponibles <= 0) {
           badgeHTML = '<span class="badge badge-rojo">Sin stock</span>';
-        } else if (disponibles < (data.ejemplares || 1)) {
-          badgeHTML = `<span class="badge badge-amarillo">${disponibles}</span>`;
+        } else if (item.disponibles < (item.ejemplares || 1)) {
+          badgeHTML = `<span class="badge badge-amarillo">${item.disponibles}</span>`;
         } else {
-          badgeHTML = `<span class="badge badge-verde">${disponibles}</span>`;
+          badgeHTML = `<span class="badge badge-verde">${item.disponibles}</span>`;
         }
 
         html += `
           <tr>
-            <td><strong>${Utils._esc(data.titulo)}</strong></td>
-            <td>${Utils._esc(data.autor)}</td>
-            <td>${Utils._esc(data.genero || "—")}</td>
-            <td>${data.ejemplares || 0}</td>
+            <td><strong>${Utils._esc(item.titulo)}</strong></td>
+            <td>${Utils._esc(item.autor)}</td>
+            <td>${Utils._esc(item.genero || "—")}</td>
+            <td>${item.ejemplares || 0}</td>
             <td>${badgeHTML}</td>
             <td>
-              <button class="btn btn-sm" onclick="Catalogo.editar('${id}')" title="Editar">&#9998;</button>
-              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminar('${id}', '${Utils._escAttr(data.titulo)}')" title="Eliminar">&#10005;</button>
+              <button class="btn btn-sm" onclick="Catalogo.editar('${item.id}')" title="Editar">&#9998;</button>
+              <button class="btn btn-sm btn-danger" onclick="Catalogo.eliminar('${item.id}', '${Utils._escAttr(item.titulo)}')" title="Eliminar">&#10005;</button>
             </td>
           </tr>`;
       });
 
       if (!html) {
         html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${filtro ? "No se encontraron resultados." : "Aun no hay libros en el catalogo."}
+          ${filtro || filtroGenero ? "No se encontraron resultados." : "Aun no hay libros en el catalogo."}
         </td></tr>`;
       }
 
       tbody.innerHTML = html;
       Roles.aplicarBotones("catalogo");
+
+      // Pagination controls
+      Utils.renderPagination("pagination-catalogo", sorted.length, this._page, this._perPage, (page) => {
+        this._page = page;
+        this.render();
+      });
+
+      // Init sortable headers
+      Utils.initSortableHeaders("tabla-catalogo-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._page = 1;
+        this.render();
+      });
     } catch (error) {
       console.error("Error al cargar catalogo:", error);
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
@@ -761,11 +885,17 @@ const Catalogo = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  USUARIOS — CRUD de Usuarios (alumnos/docentes/admin)
+//  USUARIOS — CRUD de Usuarios (with filter, sort, pagination)
 // ══════════════════════════════════════════════════════════════
 
 const Usuarios = {
   coleccion: "usuarios",
+  _data: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+  _page: 1,
+  _perPage: 20,
+  _filtroTipo: "",
 
   /**
    * Lee todos los usuarios y renderiza la tabla
@@ -773,6 +903,7 @@ const Usuarios = {
   async render() {
     const tbody = document.getElementById("tabla-usuarios");
     const filtro = (document.getElementById("buscar-usuario")?.value || "").toLowerCase();
+    const filtroTipo = document.getElementById("filtro-tipo")?.value || "";
 
     try {
       const q = query(collection(db, this.coleccion), orderBy("nombre", "asc"));
@@ -788,53 +919,94 @@ const Usuarios = {
         prestamosPorUsuario[uid] = (prestamosPorUsuario[uid] || 0) + 1;
       });
 
-      let html = "";
+      // Build data array
+      this._data = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
         const activos = prestamosPorUsuario[id] || 0;
 
-        // Filtrar
+        // Text filter
         if (filtro) {
           const texto = `${data.nombre} ${data.dni || ""} ${data.tipo} ${data.email || ""}`.toLowerCase();
           if (!texto.includes(filtro)) return;
         }
+        // Type filter
+        if (filtroTipo && (data.tipo || "") !== filtroTipo) return;
 
+        this._data.push({ id, ...data, activos });
+      });
+
+      // Sort
+      let sorted = [...this._data];
+      if (this._sortColumn) {
+        sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+          if (col === 'nombre') return item.nombre || '';
+          if (col === 'tipo') return item.tipo || '';
+          if (col === 'dni') return item.dni || '';
+          if (col === 'cuenta') return item.email || '';
+          if (col === 'prestamos') return item.activos || 0;
+          return '';
+        });
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(sorted.length / this._perPage);
+      if (this._page > totalPages) this._page = 1;
+      const start = (this._page - 1) * this._perPage;
+      const pageData = sorted.slice(start, start + this._perPage);
+
+      let html = "";
+      pageData.forEach((item) => {
         // Badge de tipo
         const tipoBadge = {
           "Alumno": "badge-azul",
           "Docente": "badge-verde",
           "Administrativo": "badge-amarillo"
-        }[data.tipo] || "badge-azul";
+        }[item.tipo] || "badge-azul";
 
         // Cuenta de acceso
-        const tieneCuenta = data.authUid ? true : false;
+        const tieneCuenta = item.authUid ? true : false;
         const cuentaHTML = tieneCuenta
-          ? `<span style="color:var(--verde);font-size:12px">${Utils._esc(data.email || "—")}</span>`
+          ? `<span style="color:var(--verde);font-size:12px">${Utils._esc(item.email || "—")}</span>`
           : `<span style="color:var(--texto-muted);font-size:12px">Sin cuenta</span>`;
 
         html += `
           <tr>
-            <td><strong>${Utils._esc(data.nombre)}</strong></td>
-            <td><span class="badge ${tipoBadge}">${Utils._esc(data.tipo)}</span></td>
-            <td>${Utils._esc(data.dni || "—")}</td>
+            <td><strong>${Utils._esc(item.nombre)}</strong></td>
+            <td><span class="badge ${tipoBadge}">${Utils._esc(item.tipo)}</span></td>
+            <td>${Utils._esc(item.dni || "—")}</td>
             <td>${cuentaHTML}</td>
-            <td>${activos > 0 ? `<span class="badge badge-amarillo">${activos}</span>` : "0"}</td>
+            <td>${item.activos > 0 ? `<span class="badge badge-amarillo">${item.activos}</span>` : "0"}</td>
             <td>
-              <button class="btn btn-sm" onclick="Usuarios.editar('${id}')" title="Editar">&#9998;</button>
-              <button class="btn btn-sm btn-danger" onclick="Usuarios.eliminar('${id}', '${Utils._escAttr(data.nombre)}')" title="Eliminar">&#10005;</button>
+              <button class="btn btn-sm" onclick="Usuarios.editar('${item.id}')" title="Editar">&#9998;</button>
+              <button class="btn btn-sm btn-danger" onclick="Usuarios.eliminar('${item.id}', '${Utils._escAttr(item.nombre)}')" title="Eliminar">&#10005;</button>
             </td>
           </tr>`;
       });
 
       if (!html) {
         html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          ${filtro ? "No se encontraron resultados." : "Aun no hay usuarios registrados."}
+          ${filtro || filtroTipo ? "No se encontraron resultados." : "Aun no hay usuarios registrados."}
         </td></tr>`;
       }
 
       tbody.innerHTML = html;
       Roles.aplicarBotones("usuarios");
+
+      // Pagination controls
+      Utils.renderPagination("pagination-usuarios", sorted.length, this._page, this._perPage, (page) => {
+        this._page = page;
+        this.render();
+      });
+
+      // Init sortable headers
+      Utils.initSortableHeaders("tabla-usuarios-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._page = 1;
+        this.render();
+      });
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
@@ -1002,7 +1174,7 @@ const Usuarios = {
         document.getElementById("usu-email").value = "";
         document.getElementById("usu-email").removeAttribute("readonly");
         document.getElementById("usu-email-label").textContent = "Email";
-        document.getElementById("usu-email-hint").textContent = "Opcional. Si completas email + contraseña, se creará una cuenta de acceso.";
+        document.getElementById("usu-email-hint").textContent = "Opcional. Si completás email + contraseña, se creará una cuenta de acceso.";
         document.getElementById("usu-email-hint").style.display = "";
         document.getElementById("usu-password").value = "";
         document.getElementById("usu-password").removeAttribute("readonly");
@@ -1170,21 +1342,29 @@ const Usuarios = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  PRESTAMOS — Gestion de prestamos y devoluciones
+//  PRESTAMOS — Gestion de prestamos y devoluciones (with filter, sort, pagination)
 // ══════════════════════════════════════════════════════════════
 
 const Prestamos = {
   coleccion: "prestamos",
+  _data: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+  _page: 1,
+  _perPage: 20,
+  _filtroEstado: "",
 
   async render() {
     const tbody = document.getElementById("tabla-prestamos");
+    const filtroEstado = document.getElementById("filtro-estado")?.value || "";
 
     try {
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
       const q = query(collection(db, this.coleccion), orderBy("fechaPrestamo", "desc"));
       const snapshot = await getDocs(q);
 
-      let html = "";
+      // Build data array
+      this._data = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
@@ -1203,19 +1383,48 @@ const Prestamos = {
           }
         }
 
+        // Filter by status
+        if (filtroEstado === "activo" && estado !== "Activo") return;
+        if (filtroEstado === "devuelto" && estado !== "Devuelto") return;
+        if (filtroEstado === "vencido" && estado !== "Vencido") return;
+
         const nombreLibro = Utils.nombreLibro(data, mapLibros);
         const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
 
+        this._data.push({ id, ...data, estado, badge, nombreLibro, nombreUsu });
+      });
+
+      // Sort
+      let sorted = [...this._data];
+      if (this._sortColumn) {
+        sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+          if (col === 'libro') return item.nombreLibro || '';
+          if (col === 'usuario') return item.nombreUsu || '';
+          if (col === 'fechaPrestamo') return item.fechaPrestamo ? Utils.toDate(item.fechaPrestamo).getTime() : 0;
+          if (col === 'fechaDevolucion') return item.fechaDevolucion ? Utils.toDate(item.fechaDevolucion).getTime() : 0;
+          if (col === 'estado') return item.estado || '';
+          return '';
+        });
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(sorted.length / this._perPage);
+      if (this._page > totalPages) this._page = 1;
+      const start = (this._page - 1) * this._perPage;
+      const pageData = sorted.slice(start, start + this._perPage);
+
+      let html = "";
+      pageData.forEach((item) => {
         html += `
           <tr>
-            <td><strong>${Utils._esc(nombreLibro)}</strong></td>
-            <td>${Utils._esc(nombreUsu)}</td>
-            <td>${Utils.formatDate(data.fechaPrestamo)}</td>
-            <td>${Utils.formatDate(data.fechaDevolucion)}</td>
-            <td><span class="badge ${badge}">${estado}</span></td>
+            <td><strong>${Utils._esc(item.nombreLibro)}</strong></td>
+            <td>${Utils._esc(item.nombreUsu)}</td>
+            <td>${Utils.formatDate(item.fechaPrestamo)}</td>
+            <td>${Utils.formatDate(item.fechaDevolucion)}</td>
+            <td><span class="badge ${item.badge}">${item.estado}</span></td>
             <td>
-              ${data.estado !== "devuelto"
-                ? `<button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${id}')">Devolver</button>`
+              ${item.estado !== "Devuelto"
+                ? `<button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${item.id}')">Devolver</button>`
                 : '<span style="color:var(--texto-muted);font-size:11px">Finalizado</span>'}
             </td>
           </tr>`;
@@ -1229,6 +1438,20 @@ const Prestamos = {
 
       tbody.innerHTML = html;
       Roles.aplicarBotones("prestamos");
+
+      // Pagination controls
+      Utils.renderPagination("pagination-prestamos", sorted.length, this._page, this._perPage, (page) => {
+        this._page = page;
+        this.render();
+      });
+
+      // Init sortable headers
+      Utils.initSortableHeaders("tabla-prestamos-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._page = 1;
+        this.render();
+      });
     } catch (error) {
       console.error("Error al cargar prestamos:", error);
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">
@@ -1240,25 +1463,29 @@ const Prestamos = {
   async cargarSelects() {
     try {
       const libros = await Catalogo.obtenerTodos();
-      const selectLibro = document.getElementById("pres-libro");
-      selectLibro.innerHTML = '<option value="">— Seleccionar libro —</option>';
-      libros.forEach(libro => {
-        if (libro.disponibles > 0) {
-          selectLibro.innerHTML += `<option value="${libro.id}" data-titulo="${Utils._escAttr(libro.titulo)}">${libro.titulo} (${libro.disponibles} disp.)</option>`;
-        }
-      });
-
       const usuarios = await Usuarios.obtenerTodos();
-      const selectUsuario = document.getElementById("pres-usuario");
-      selectUsuario.innerHTML = '<option value="">— Seleccionar usuario —</option>';
-      usuarios.forEach(usu => {
-        const dniStr = usu.dni ? ` - DNI: ${usu.dni}` : "";
-        selectUsuario.innerHTML += `<option value="${usu.id}" data-nombre="${Utils._escAttr(usu.nombre)}">${usu.nombre} (${usu.tipo}${dniStr})</option>`;
-      });
 
+      const libroItems = libros.filter(l => l.disponibles > 0).map(l => ({
+        value: l.id,
+        title: l.titulo,
+        meta: `${l.autor} · ${l.disponibles} disp.`,
+        searchText: `${l.titulo} ${l.autor}`
+      }));
+
+      const usuarioItems = usuarios.map(u => ({
+        value: u.id,
+        title: u.nombre,
+        meta: `${u.tipo}${u.dni ? ' · DNI: ' + u.dni : ''}`,
+        searchText: `${u.nombre} ${u.dni || ''} ${u.tipo}`
+      }));
+
+      // Feature 4: Use SearchSelect combobox instead of plain selects
+      SearchSelect.init('pres-libro-input', 'dropdown-libro', 'pres-libro', libroItems);
+      SearchSelect.init('pres-usuario-input', 'dropdown-usuario', 'pres-usuario', usuarioItems);
+
+      // Keep date defaults
       const hoy = Utils.today();
       document.getElementById("pres-fecha").value = hoy;
-
       const diasDefault = await Config.obtenerDias();
       const fechaDevolucion = Utils.addDays(hoy, diasDefault);
       document.getElementById("pres-devolucion").value = fechaDevolucion.toISOString().split("T")[0];
@@ -1268,10 +1495,11 @@ const Prestamos = {
   },
 
   async registrar() {
-    const selectLibro = document.getElementById("pres-libro");
-    const selectUsuario = document.getElementById("pres-usuario");
-    const libroId = selectLibro.value;
-    const usuarioId = selectUsuario.value;
+    // Feature 4: Get values from hidden inputs (SearchSelect)
+    const libroId = document.getElementById("pres-libro").value;
+    const usuarioId = document.getElementById("pres-usuario").value;
+    const libroTitulo = document.getElementById("pres-libro-input").value;
+    const usuarioNombre = document.getElementById("pres-usuario-input").value;
     const fechaPrestamo = document.getElementById("pres-fecha").value;
     const fechaDevolucion = document.getElementById("pres-devolucion").value;
 
@@ -1287,9 +1515,6 @@ const Prestamos = {
       UI.mostrarAlerta("alert-prestamo", "La devolucion debe ser posterior al prestamo.", "danger");
       return;
     }
-
-    const libroTitulo = selectLibro.options[selectLibro.selectedIndex].dataset.titulo || "";
-    const usuarioNombre = selectUsuario.options[selectUsuario.selectedIndex].dataset.nombre || "";
 
     Utils.loading(true);
 
@@ -1310,6 +1535,11 @@ const Prestamos = {
       UI.mostrarAlerta("alert-prestamo", `Prestamo de "${libroTitulo}" registrado.`);
       this.render();
       Vencidos.actualizarBadge();
+      Notificaciones.cargar();
+
+      // Feature 4: Reset search selects after successful registration
+      SearchSelect.reset('pres-libro-input');
+      SearchSelect.reset('pres-usuario-input');
     } catch (error) {
       console.error("Error al registrar prestamo:", error);
       UI.mostrarAlerta("alert-prestamo", "Error al registrar el prestamo.", "danger");
@@ -1339,6 +1569,7 @@ const Prestamos = {
       UI.mostrarAlerta("alert-prestamo", `"${data.libroTitulo}" devuelto correctamente.`);
       this.render();
       Vencidos.actualizarBadge();
+      Notificaciones.cargar();
     } catch (error) {
       console.error("Error al registrar devolucion:", error);
       UI.mostrarAlerta("alert-prestamo", "Error al registrar devolucion.", "danger");
@@ -1350,10 +1581,14 @@ const Prestamos = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  VENCIDOS — Prestamos que pasaron la fecha de devolucion
+//  VENCIDOS — Prestamos que pasaron la fecha de devolucion (with sort)
 // ══════════════════════════════════════════════════════════════
 
 const Vencidos = {
+  _data: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+
   async render() {
     const tbody = document.getElementById("tabla-vencidos");
 
@@ -1364,8 +1599,7 @@ const Vencidos = {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
-      let html = "";
-      let count = 0;
+      this._data = [];
 
       prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -1378,37 +1612,98 @@ const Vencidos = {
         fechaDev.setHours(0, 0, 0, 0);
 
         if (fechaDev < hoy) {
-          count++;
           const diasAtraso = Utils.daysDiff(data.fechaDevolucion);
           const nombreLibro = Utils.nombreLibro(data, mapLibros);
           const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
 
-          html += `
-            <tr>
-              <td><strong>${Utils._esc(nombreLibro)}</strong></td>
-              <td>${Utils._esc(nombreUsu)}</td>
-              <td>${Utils.formatDate(data.fechaDevolucion)}</td>
-              <td><span class="badge badge-rojo">${diasAtraso} dias</span></td>
-              <td>
-                <button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${id}')">Devolver</button>
-              </td>
-            </tr>`;
+          this._data.push({
+            id,
+            libro: nombreLibro,
+            usuario: nombreUsu,
+            fecha: fechaDev,
+            fechaRaw: data.fechaDevolucion,
+            dias
+          });
         }
       });
 
-      if (!html) {
+      // Sort
+      let sorted = [...this._data];
+      if (this._sortColumn) {
+        sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+          if (col === 'libro') return item.libro || '';
+          if (col === 'usuario') return item.usuario || '';
+          if (col === 'fecha') return item.fecha ? item.fecha.getTime() : 0;
+          if (col === 'dias') return item.dias || 0;
+          return '';
+        });
+      }
+
+      let html = "";
+      if (sorted.length === 0) {
         html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">
           No hay prestamos vencidos. Todo al dia.
         </td></tr>`;
+      } else {
+        sorted.forEach((item) => {
+          html += `
+            <tr>
+              <td><strong>${Utils._esc(item.libro)}</strong></td>
+              <td>${Utils._esc(item.usuario)}</td>
+              <td>${Utils.formatDate(item.fechaRaw)}</td>
+              <td><span class="badge badge-rojo">${item.dias} dias</span></td>
+              <td>
+                <button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${item.id}')">Devolver</button>
+              </td>
+            </tr>`;
+        });
       }
 
       tbody.innerHTML = html;
+
+      // Init sortable headers
+      Utils.initSortableHeaders("tabla-vencidos-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._renderSorted();
+      });
     } catch (error) {
       console.error("Error al cargar vencidos:", error);
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#B42318">
         Error al cargar datos.
       </td></tr>`;
     }
+  },
+
+  _renderSorted() {
+    const tbody = document.getElementById("tabla-vencidos");
+    let sorted = [...this._data];
+    if (this._sortColumn) {
+      sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+        if (col === 'libro') return item.libro || '';
+        if (col === 'usuario') return item.usuario || '';
+        if (col === 'fecha') return item.fecha ? item.fecha.getTime() : 0;
+        if (col === 'dias') return item.dias || 0;
+        return '';
+      });
+    }
+    let html = "";
+    sorted.forEach((item) => {
+      html += `
+        <tr>
+          <td><strong>${Utils._esc(item.libro)}</strong></td>
+          <td>${Utils._esc(item.usuario)}</td>
+          <td>${Utils.formatDate(item.fechaRaw)}</td>
+          <td><span class="badge badge-rojo">${item.dias} dias</span></td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${item.id}')">Devolver</button>
+          </td>
+        </tr>`;
+    });
+    if (!html) {
+      html = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay prestamos vencidos.</td></tr>`;
+    }
+    tbody.innerHTML = html;
   },
 
   async actualizarBadge() {
@@ -1442,10 +1737,364 @@ const Vencidos = {
 
 
 // ══════════════════════════════════════════════════════════════
-//  DASHBOARD — Panel principal con estadisticas
+//  FEATURE 2: MI HISTORIAL — Historial de prestamos del alumno
+// ══════════════════════════════════════════════════════════════
+
+const MiHistorial = {
+  _data: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+  _page: 1,
+  _perPage: 15,
+
+  async render() {
+    const tbody = document.getElementById("tabla-mihistorial");
+    if (!tbody) return;
+    if (!Roles.usuarioDocId) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">No se pudo identificar tu usuario.</td></tr>`;
+      return;
+    }
+
+    try {
+      const { mapLibros } = await Utils.cargarNombres();
+      const q = query(collection(db, "prestamos"), where("usuarioId", "==", Roles.usuarioDocId), orderBy("fechaPrestamo", "desc"));
+      const snapshot = await getDocs(q);
+
+      this._data = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const estado = data.estado === "devuelto" ? "Devuelto" :
+          (data.fechaDevolucion && Utils.daysDiff(data.fechaDevolucion) > 0 ? "Vencido" : "Activo");
+
+        let diasAtraso = 0;
+        if (data.estado !== "devuelto" && data.fechaDevolucion) {
+          diasAtraso = Math.max(0, Utils.daysDiff(data.fechaDevolucion));
+        } else if (data.estado === "devuelto" && data.fechaRealDevolucion && data.fechaDevolucion) {
+          const fechaReal = Utils.toDate(data.fechaRealDevolucion);
+          const fechaDev = Utils.toDate(data.fechaDevolucion);
+          if (fechaReal && fechaDev) {
+            diasAtraso = Math.max(0, Math.ceil((fechaReal - fechaDev) / (1000 * 60 * 60 * 24)));
+          }
+        }
+
+        this._data.push({
+          id: docSnap.id,
+          libro: data.libroTitulo || mapLibros[data.libroId] || "—",
+          fechaPrestamo: data.fechaPrestamo ? Utils.toDate(data.fechaPrestamo) : null,
+          fechaDevolucion: data.fechaDevolucion ? Utils.toDate(data.fechaDevolucion) : null,
+          fechaRealDevolucion: data.fechaRealDevolucion ? Utils.toDate(data.fechaRealDevolucion) : null,
+          estado,
+          devuelto: data.fechaRealDevolucion ? Utils.formatDate(data.fechaRealDevolucion) : "—",
+          diasAtraso
+        });
+      });
+
+      // Apply sort
+      let sorted = [...this._data];
+      if (this._sortColumn) {
+        sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+          if (col === 'libro') return item.libro || '';
+          if (col === 'fechaPrestamo') return item.fechaPrestamo ? item.fechaPrestamo.getTime() : 0;
+          if (col === 'fechaDevolucion') return item.fechaDevolucion ? item.fechaDevolucion.getTime() : 0;
+          if (col === 'devuelto') return item.devuelto;
+          if (col === 'estado') return item.estado;
+          if (col === 'diasAtraso') return item.diasAtraso || 0;
+          return '';
+        });
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(sorted.length / this._perPage);
+      if (this._page > totalPages) this._page = 1;
+      const start = (this._page - 1) * this._perPage;
+      const pageData = sorted.slice(start, start + this._perPage);
+
+      let html = "";
+      if (pageData.length === 0) {
+        html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">No tenés préstamos registrados.</td></tr>`;
+      } else {
+        pageData.forEach(item => {
+          const badge = item.estado === "Devuelto" ? "badge-verde" : item.estado === "Vencido" ? "badge-rojo" : "badge-azul";
+          const atraso = item.diasAtraso > 0 ? `<span class="badge badge-rojo">${item.diasAtraso} dias</span>` : `<span style="color:var(--texto-muted)">—</span>`;
+          html += `<tr>
+            <td><strong>${Utils._esc(item.libro)}</strong></td>
+            <td>${Utils.formatDate(item.fechaPrestamo)}</td>
+            <td>${Utils.formatDate(item.fechaDevolucion)}</td>
+            <td>${Utils._esc(item.devuelto)}</td>
+            <td><span class="badge ${badge}">${item.estado}</span></td>
+            <td>${atraso}</td>
+          </tr>`;
+        });
+      }
+      tbody.innerHTML = html;
+
+      // Pagination controls
+      Utils.renderPagination("pagination-mihistorial", sorted.length, this._page, this._perPage, (page) => {
+        this._page = page;
+        this.render();
+      });
+
+      // Init sortable
+      Utils.initSortableHeaders("tabla-mihistorial-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._page = 1;
+        this.render();
+      });
+    } catch (error) {
+      console.error("Error al cargar historial:", error);
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#B42318">Error al cargar datos.</td></tr>`;
+    }
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════
+//  FEATURE 1: NOTIFICACIONES — Bell icon with dropdown
+// ══════════════════════════════════════════════════════════════
+
+const Notificaciones = {
+  data: [],
+
+  async cargar() {
+    try {
+      const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
+      const prestamosSnap = await getDocs(collection(db, "prestamos"));
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const dosDias = new Date(hoy);
+      dosDias.setDate(dosDias.getDate() + 2);
+
+      this.data = [];
+      prestamosSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.estado === "devuelto") return;
+        const fechaDev = Utils.toDate(data.fechaDevolucion);
+        if (!fechaDev) return;
+        fechaDev.setHours(0, 0, 0, 0);
+
+        if (fechaDev <= hoy) {
+          // Already expired
+          this.data.push({
+            id: docSnap.id,
+            libroTitulo: data.libroTitulo || mapLibros[data.libroId] || "—",
+            usuarioNombre: data.usuarioNombre || mapUsuarios[data.usuarioId] || "—",
+            fechaDevolucion: fechaDev,
+            diasAtraso: Utils.daysDiff(data.fechaDevolucion),
+            tipo: "vencido"
+          });
+        } else if (fechaDev <= dosDias) {
+          // Expiring within 2 days
+          const diasRestantes = Math.ceil((fechaDev - hoy) / (1000 * 60 * 60 * 24));
+          this.data.push({
+            id: docSnap.id,
+            libroTitulo: data.libroTitulo || mapLibros[data.libroId] || "—",
+            usuarioNombre: data.usuarioNombre || mapUsuarios[data.usuarioId] || "—",
+            fechaDevolucion: fechaDev,
+            diasRestantes,
+            tipo: "por-vencer"
+          });
+        }
+      });
+
+      // Sort: expired first, then by days
+      this.data.sort((a, b) => {
+        if (a.tipo === "vencido" && b.tipo !== "vencido") return -1;
+        if (a.tipo !== "vencido" && b.tipo === "vencido") return 1;
+        return (b.diasAtraso || b.diasRestantes || 0) - (a.diasAtraso || a.diasRestantes || 0);
+      });
+
+      this.actualizarBadge();
+    } catch (error) {
+      console.error("Error al cargar notificaciones:", error);
+    }
+  },
+
+  actualizarBadge() {
+    const badge = document.getElementById("notif-badge");
+    if (!badge) return;
+    const count = this.data.length;
+    badge.textContent = count > 0 ? count : "";
+    badge.style.display = count > 0 ? "block" : "none";
+  },
+
+  toggle() {
+    const dropdown = document.getElementById("notif-dropdown");
+    if (!dropdown) return;
+    const isOpen = dropdown.classList.contains("open");
+    if (isOpen) {
+      dropdown.classList.remove("open");
+    } else {
+      this.renderDropdown();
+      dropdown.classList.add("open");
+    }
+  },
+
+  cerrar() {
+    const dropdown = document.getElementById("notif-dropdown");
+    if (dropdown) dropdown.classList.remove("open");
+  },
+
+  renderDropdown() {
+    const dropdown = document.getElementById("notif-dropdown");
+    if (!dropdown) return;
+
+    if (this.data.length === 0) {
+      dropdown.innerHTML = `
+        <div class="notif-header">
+          <span>Notificaciones</span>
+        </div>
+        <div class="notif-empty">Todo al dia. Sin alertas.</div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div class="notif-header">
+        <span>Notificaciones</span>
+        <span style="font-size:12px;color:var(--texto-muted)">${this.data.length} alerta${this.data.length > 1 ? 's' : ''}</span>
+      </div>
+    `;
+
+    this.data.forEach(item => {
+      const badgeClass = item.tipo === "vencido" ? "badge-rojo" : "badge-amarillo";
+      const badgeText = item.tipo === "vencido" ? `${item.diasAtraso} dias de atraso` : `Vence en ${item.diasRestantes} dia${item.diasRestantes > 1 ? 's' : ''}`;
+      html += `
+        <div class="notif-item">
+          <div class="notif-item-info">
+            <div class="notif-item-title">${Utils._esc(item.libroTitulo)}</div>
+            <div class="notif-item-meta">${Utils._esc(item.usuarioNombre)} · Dev: ${Utils.formatDate(item.fechaDevolucion)}</div>
+          </div>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+      `;
+    });
+
+    dropdown.innerHTML = html;
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════
+//  FEATURE 4: SEARCHSELECT — Buscador en selects del modal
+// ══════════════════════════════════════════════════════════════
+
+const SearchSelect = {
+  _instances: {},
+
+  init(inputId, dropdownId, hiddenId, items, onChange) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    if (!input || !dropdown) return;
+
+    this._instances[inputId] = { items, onChange, hiddenId, highlightedIndex: -1 };
+
+    input.addEventListener('input', () => {
+      const query = input.value.toLowerCase().trim();
+      const filtered = query ? items.filter(item => item.searchText.toLowerCase().includes(query)) : items.slice(0, 50);
+      this._render(dropdownId, filtered, inputId);
+      dropdown.classList.add('open');
+    });
+
+    input.addEventListener('focus', () => {
+      if (!input.value) {
+        const filtered = items.slice(0, 50);
+        this._render(dropdownId, filtered, inputId);
+        dropdown.classList.add('open');
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      const inst = this._instances[inputId];
+      const options = dropdown.querySelectorAll('.combobox-option');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        inst.highlightedIndex = Math.min(inst.highlightedIndex + 1, options.length - 1);
+        this._updateHighlight(options, inst.highlightedIndex);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        inst.highlightedIndex = Math.max(inst.highlightedIndex - 1, 0);
+        this._updateHighlight(options, inst.highlightedIndex);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (inst.highlightedIndex >= 0 && options[inst.highlightedIndex]) {
+          options[inst.highlightedIndex].click();
+        }
+      } else if (e.key === 'Escape') {
+        dropdown.classList.remove('open');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const combobox = input.closest('.combobox');
+      if (combobox && !combobox.contains(e.target)) {
+        dropdown.classList.remove('open');
+      }
+    });
+  },
+
+  _render(dropdownId, items, inputId) {
+    const dropdown = document.getElementById(dropdownId);
+    const inst = this._instances[inputId];
+    inst.highlightedIndex = -1;
+
+    if (items.length === 0) {
+      dropdown.innerHTML = '<div class="combobox-option" style="color:var(--texto-muted);cursor:default">Sin resultados</div>';
+      return;
+    }
+
+    let html = '';
+    items.forEach((item, index) => {
+      html += `<div class="combobox-option" data-index="${index}" data-value="${item.value}" data-title="${Utils._escAttr(item.title)}">
+        <div class="combobox-option-text">${Utils._esc(item.title)}</div>
+        ${item.meta ? `<div class="combobox-option-meta">${Utils._esc(item.meta)}</div>` : ''}
+      </div>`;
+    });
+    dropdown.innerHTML = html;
+
+    dropdown.querySelectorAll('.combobox-option[data-value]').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const input = document.getElementById(inputId);
+        const hidden = document.getElementById(inst.hiddenId);
+        input.value = opt.dataset.title;
+        hidden.value = opt.dataset.value;
+        dropdown.classList.remove('open');
+        if (inst.onChange) inst.onChange(opt.dataset.value, opt.dataset.title);
+      });
+    });
+  },
+
+  _updateHighlight(options, index) {
+    options.forEach((opt, i) => {
+      opt.classList.toggle('highlighted', i === index);
+    });
+    if (options[index]) options[index].scrollIntoView({ block: 'nearest' });
+  },
+
+  reset(inputId) {
+    const input = document.getElementById(inputId);
+    const inst = this._instances[inputId];
+    if (input) input.value = '';
+    if (inst) {
+      const hidden = document.getElementById(inst.hiddenId);
+      if (hidden) hidden.value = '';
+    }
+    const dropdownId = inputId.replace('pres-', 'dropdown-');
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) dropdown.classList.remove('open');
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════
+//  DASHBOARD — Panel principal con estadisticas (with sort)
 // ══════════════════════════════════════════════════════════════
 
 const Dashboard = {
+  _ultimosPrestamos: [],
+  _sortColumn: null,
+  _sortDirection: 'asc',
+
   async render() {
     try {
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
@@ -1459,7 +2108,7 @@ const Dashboard = {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
-      const ultimosPrestamos = [];
+      this._ultimosPrestamos = [];
 
       prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -1479,7 +2128,9 @@ const Dashboard = {
 
         const fechaP = Utils.toDate(data.fechaPrestamo);
         p._sortDate = fechaP ? fechaP.getTime() : 0;
-        ultimosPrestamos.push(p);
+        p._nombreLibro = Utils.nombreLibro(data, mapLibros);
+        p._nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
+        this._ultimosPrestamos.push(p);
       });
 
       document.getElementById("stat-libros").textContent = totalLibros;
@@ -1487,55 +2138,79 @@ const Dashboard = {
       document.getElementById("stat-vencidos").textContent = vencidos;
       document.getElementById("stat-usuarios").textContent = totalUsuarios;
 
-      ultimosPrestamos.sort((a, b) => b._sortDate - a._sortDate);
-      const ultimos5 = ultimosPrestamos.slice(0, 5);
+      this._ultimosPrestamos.sort((a, b) => b._sortDate - a._sortDate);
+      const ultimos5 = this._ultimosPrestamos.slice(0, 5);
 
-      const tbody = document.getElementById("tabla-ultimos");
-      let html = "";
+      this._renderUltimos(ultimos5, hoy);
 
-      if (ultimos5.length === 0) {
-        html = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          No hay prestamos registrados todavia.
-        </td></tr>`;
-      } else {
-        ultimos5.forEach((p) => {
-          let badge;
-          if (p.estado === "devuelto") {
-            badge = '<span class="badge badge-verde">Devuelto</span>';
-          } else {
-            const fechaDev = Utils.toDate(p.fechaDevolucion);
-            const vencido = fechaDev && (fechaDev.setHours(0,0,0,0) < hoy.getTime());
-            badge = vencido
-              ? '<span class="badge badge-rojo">Vencido</span>'
-              : '<span class="badge badge-azul">Activo</span>';
-          }
-
-          const nombreLibro = Utils.nombreLibro(p, mapLibros);
-          const nombreUsu = Utils.nombreUsuario(p, mapUsuarios);
-
-          html += `
-            <tr>
-              <td><strong>${Utils._esc(nombreLibro)}</strong></td>
-              <td>${Utils._esc(nombreUsu)}</td>
-              <td>${Utils.formatDate(p.fechaDevolucion)}</td>
-              <td>${badge}</td>
-            </tr>`;
-        });
-      }
-
-      tbody.innerHTML = html;
+      // Init sortable headers for dashboard table
+      Utils.initSortableHeaders("tabla-ultimos-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._renderUltimosSorted(hoy);
+      });
     } catch (error) {
       console.error("Error al cargar dashboard:", error);
     }
+  },
+
+  _renderUltimos(ultimos5, hoy) {
+    const tbody = document.getElementById("tabla-ultimos");
+    let html = "";
+
+    if (ultimos5.length === 0) {
+      html = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--texto-muted)">
+        No hay prestamos registrados todavia.
+      </td></tr>`;
+    } else {
+      ultimos5.forEach((p) => {
+        let badge;
+        if (p.estado === "devuelto") {
+          badge = '<span class="badge badge-verde">Devuelto</span>';
+        } else {
+          const fechaDev = Utils.toDate(p.fechaDevolucion);
+          const vencido = fechaDev && (fechaDev.setHours(0,0,0,0) < hoy.getTime());
+          badge = vencido
+            ? '<span class="badge badge-rojo">Vencido</span>'
+            : '<span class="badge badge-azul">Activo</span>';
+        }
+
+        html += `
+          <tr>
+            <td><strong>${Utils._esc(p._nombreLibro)}</strong></td>
+            <td>${Utils._esc(p._nombreUsu)}</td>
+            <td>${Utils.formatDate(p.fechaDevolucion)}</td>
+            <td>${badge}</td>
+          </tr>`;
+      });
+    }
+
+    tbody.innerHTML = html;
+  },
+
+  _renderUltimosSorted(hoy) {
+    let sorted = [...this._ultimosPrestamos].slice(0, 5);
+    if (this._sortColumn) {
+      sorted = Utils.sortData(sorted, this._sortColumn, this._sortDirection, (item, col) => {
+        if (col === 'libro') return item._nombreLibro || '';
+        if (col === 'usuario') return item._nombreUsu || '';
+        if (col === 'devolucion') return item._sortDate || 0;
+        if (col === 'estado') return item.estado === 'devuelto' ? 'Devuelto' : (item.fechaDevolucion && Utils.daysDiff(item.fechaDevolucion) > 0 ? 'Vencido' : 'Activo');
+        return '';
+      });
+    }
+    this._renderUltimos(sorted, hoy);
   }
 };
 
 
 // ══════════════════════════════════════════════════════════════
-//  REPORTES — Estadisticas de la biblioteca
+//  REPORTES — Estadisticas de la biblioteca (with sort)
 // ══════════════════════════════════════════════════════════════
 
 const Reportes = {
+  _ranking: [],
+
   async render() {
     const statsContainer = document.getElementById("stats-reportes");
     const tbody = document.getElementById("tabla-mas-prestados");
@@ -1612,7 +2287,7 @@ const Reportes = {
         }
       });
 
-      const ranking = Object.values(prestamosPorLibro)
+      this._ranking = Object.values(prestamosPorLibro)
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
@@ -1656,29 +2331,64 @@ const Reportes = {
         </div>
       `;
 
-      let rankingHTML = "";
-      if (ranking.length === 0) {
-        rankingHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">
-          No hay datos suficientes.
-        </td></tr>`;
-      } else {
-        ranking.forEach((libro, i) => {
-          const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-          rankingHTML += `
-            <tr>
-              <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
-              <td>${Utils._esc(libro.autor)}</td>
-              <td><span class="badge badge-azul">${libro.count}</span></td>
-            </tr>`;
-        });
-      }
+      this._renderRanking();
 
-      tbody.innerHTML = rankingHTML;
+      // Init sortable headers for reportes table
+      Utils.initSortableHeaders("tabla-reportes-wrapper", (column, direction) => {
+        this._sortColumn = column;
+        this._sortDirection = direction;
+        this._renderRankingSorted();
+      });
     } catch (error) {
       console.error("Error al cargar reportes:", error);
       statsContainer.innerHTML = `<p style="color:#B42318;padding:1rem">Error al cargar estadisticas.</p>`;
       tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:#B42318">Error.</td></tr>`;
     }
+  },
+
+  _renderRanking() {
+    const tbody = document.getElementById("tabla-mas-prestados");
+    let rankingHTML = "";
+    if (this._ranking.length === 0) {
+      rankingHTML = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">
+        No hay datos suficientes.
+      </td></tr>`;
+    } else {
+      this._ranking.forEach((libro, i) => {
+        const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+        rankingHTML += `
+          <tr>
+            <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
+            <td>${Utils._esc(libro.autor)}</td>
+            <td><span class="badge badge-azul">${libro.count}</span></td>
+          </tr>`;
+      });
+    }
+    tbody.innerHTML = rankingHTML;
+  },
+
+  _renderRankingSorted() {
+    const tbody = document.getElementById("tabla-mas-prestados");
+    let sorted = Utils.sortData(this._ranking, this._sortColumn, this._sortDirection, (item, col) => {
+      if (col === 'titulo') return item.titulo || '';
+      if (col === 'autor') return item.autor || '';
+      if (col === 'count') return item.count || 0;
+      return '';
+    });
+    let html = "";
+    sorted.forEach((libro, i) => {
+      const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      html += `
+        <tr>
+          <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
+          <td>${Utils._esc(libro.autor)}</td>
+          <td><span class="badge badge-azul">${libro.count}</span></td>
+        </tr>`;
+    });
+    if (!html) {
+      html = `<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay datos suficientes.</td></tr>`;
+    }
+    tbody.innerHTML = html;
   }
 };
 
@@ -1752,6 +2462,12 @@ window.Usuarios = Usuarios;
 window.Prestamos = Prestamos;
 window.Config = Config;
 window.Roles = Roles;
+window.Dashboard = Dashboard;
+window.Vencidos = Vencidos;
+window.Reportes = Reportes;
+window.MiHistorial = MiHistorial;
+window.Notificaciones = Notificaciones;
+window.SearchSelect = SearchSelect;
 
 // Permitir login con Enter
 document.getElementById("login-password").addEventListener("keypress", (e) => {
@@ -1791,6 +2507,14 @@ document.querySelectorAll(".overlay").forEach(overlay => {
 
 // Configurar modal de usuario al abrirlo (preparar para agregar)
 document.getElementById("btn-guardar-usuario")?.addEventListener("click", () => {});
+
+// Feature 1: Close notification dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  const wrapper = document.getElementById("notif-wrapper");
+  if (wrapper && !wrapper.contains(e.target)) {
+    Notificaciones.cerrar();
+  }
+});
 
 // Iniciar el listener de autenticacion
 Auth.init();
