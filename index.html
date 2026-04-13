@@ -80,6 +80,18 @@
       <div class="user-badge">
         <div class="avatar" id="avatar-initials">--</div>
         <span class="user-name" id="header-username">--</span>
+        <!-- FEATURE 1: Notification Bell -->
+        <div class="notif-wrapper" id="notif-wrapper">
+          <button class="btn-notif" id="btn-notif" onclick="Notificaciones.toggle()" title="Notificaciones">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notif-badge" id="notif-badge"></span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown"></div>
+        </div>
+        <!-- END FEATURE 1 -->
         <button class="btn-theme-toggle" id="btn-theme" onclick="UI.toggleTheme()" title="Cambiar tema">
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -115,6 +127,15 @@
               </svg>
             </span> Préstamos
           </div>
+          <!-- FEATURE 2: Mi historial nav item -->
+          <div class="nav-item" data-sec="mihistorial" onclick="UI.navigate(this,'mihistorial')">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span> Mi historial
+          </div>
+          <!-- END FEATURE 2 -->
         </div>
         <div class="nav-divider"></div>
         <div class="nav-section">
@@ -190,9 +211,14 @@
               <h3>Últimos préstamos</h3>
               <button class="btn" onclick="UI.navigate(document.querySelector('[data-sec=prestamos]'),'prestamos')">Ver todos</button>
             </div>
-            <table>
+            <table id="tabla-ultimos-wrapper">
               <thead>
-                <tr><th>Libro</th><th>Usuario</th><th>Devolución</th><th>Estado</th></tr>
+                <tr>
+                  <th class="sortable" data-sort="libro">Libro <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="usuario">Usuario <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="devolucion">Devolución <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="estado">Estado <span class="sort-arrow"></span></th>
+                </tr>
               </thead>
               <tbody id="tabla-ultimos"></tbody>
             </table>
@@ -207,16 +233,36 @@
           </div>
           <div id="alert-libro" class="alert alert-success"></div>
           <div class="search-bar">
-            <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Catalogo.render()">
+            <input type="text" id="buscar-libro" placeholder="Buscar por título, autor o ISBN..." oninput="Catalogo._page=1; Catalogo.render()">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-libro')">+ Agregar libro</button>
           </div>
+          <!-- FEATURE 3: Filter bar -->
+          <div class="filter-bar">
+            <select class="filter-select" id="filtro-genero" onchange="Catalogo._filtroGenero=this.value; Catalogo._page=1; Catalogo.render()">
+              <option value="">Todos los géneros</option>
+              <option>Literatura</option><option>Novela</option><option>Texto escolar</option>
+              <option>Historia</option><option>Ciencias</option><option>Matemática</option>
+              <option>Arte</option><option>Otro</option>
+            </select>
+          </div>
+          <!-- END FEATURE 3 -->
           <div class="table-card">
-            <table>
+            <!-- FEATURE 5: Sortable headers + table id -->
+            <table id="tabla-catalogo-wrapper">
               <thead>
-                <tr><th>Título</th><th>Autor</th><th>Género</th><th>Ejemplares</th><th>Disponibles</th><th></th></tr>
+                <tr>
+                  <th class="sortable" data-sort="titulo">Título <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="autor">Autor <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="genero">Género <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="ejemplares">Ejemplares <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="disponibles">Disponibles <span class="sort-arrow"></span></th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody id="tabla-catalogo"></tbody>
             </table>
+            <!-- END FEATURE 5 -->
+            <div id="pagination-catalogo"></div>
           </div>
         </div>
 
@@ -230,13 +276,33 @@
           <div class="toolbar">
             <button class="btn btn-primary" onclick="UI.abrirModal('modal-prestamo')">+ Nuevo préstamo</button>
           </div>
+          <!-- FEATURE 3: Filter bar -->
+          <div class="filter-bar">
+            <select class="filter-select" id="filtro-estado" onchange="Prestamos._filtroEstado=this.value; Prestamos._page=1; Prestamos.render()">
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="devuelto">Devuelto</option>
+              <option value="vencido">Vencido</option>
+            </select>
+          </div>
+          <!-- END FEATURE 3 -->
           <div class="table-card">
-            <table>
+            <!-- FEATURE 5: Sortable headers + table id -->
+            <table id="tabla-prestamos-wrapper">
               <thead>
-                <tr><th>Libro</th><th>Usuario</th><th>Prestado</th><th>Devolución</th><th>Estado</th><th></th></tr>
+                <tr>
+                  <th class="sortable" data-sort="libro">Libro <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="usuario">Usuario <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="fechaPrestamo">Prestado <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="fechaDevolucion">Devolución <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="estado">Estado <span class="sort-arrow"></span></th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody id="tabla-prestamos"></tbody>
             </table>
+            <!-- END FEATURE 5 -->
+            <div id="pagination-prestamos"></div>
           </div>
         </div>
 
@@ -248,16 +314,36 @@
           </div>
           <div id="alert-usuario" class="alert alert-success"></div>
           <div class="search-bar">
-            <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios.render()">
+            <input type="text" id="buscar-usuario" placeholder="Buscar por nombre, DNI o tipo..." oninput="Usuarios._page=1; Usuarios.render()">
             <button class="btn btn-primary" onclick="Usuarios._prepararModalAgregar(); UI.abrirModal('modal-usuario')">+ Agregar usuario</button>
           </div>
+          <!-- FEATURE 3: Filter bar -->
+          <div class="filter-bar">
+            <select class="filter-select" id="filtro-tipo" onchange="Usuarios._filtroTipo=this.value; Usuarios._page=1; Usuarios.render()">
+              <option value="">Todos los tipos</option>
+              <option>Alumno</option>
+              <option>Docente</option>
+              <option>Administrativo</option>
+            </select>
+          </div>
+          <!-- END FEATURE 3 -->
           <div class="table-card">
-            <table>
+            <!-- FEATURE 5: Sortable headers + table id -->
+            <table id="tabla-usuarios-wrapper">
               <thead>
-                <tr><th>Nombre</th><th>Tipo</th><th>DNI</th><th>Cuenta</th><th>Préstamos</th><th></th></tr>
+                <tr>
+                  <th class="sortable" data-sort="nombre">Nombre <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="tipo">Tipo <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="dni">DNI <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="cuenta">Cuenta <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="prestamos">Préstamos <span class="sort-arrow"></span></th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody id="tabla-usuarios"></tbody>
             </table>
+            <!-- END FEATURE 5 -->
+            <div id="pagination-usuarios"></div>
           </div>
         </div>
 
@@ -268,14 +354,47 @@
             <p>Libros que no fueron devueltos a tiempo</p>
           </div>
           <div class="table-card">
-            <table>
+            <!-- FEATURE 5: Sortable headers + table id -->
+            <table id="tabla-vencidos-wrapper">
               <thead>
-                <tr><th>Libro</th><th>Usuario</th><th>Vencimiento</th><th>Días de atraso</th><th></th></tr>
+                <tr>
+                  <th class="sortable" data-sort="libro">Libro <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="usuario">Usuario <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="fecha">Vencimiento <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="dias">Días de atraso <span class="sort-arrow"></span></th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody id="tabla-vencidos"></tbody>
             </table>
+            <!-- END FEATURE 5 -->
           </div>
         </div>
+
+        <!-- FEATURE 2: MI HISTORIAL -->
+        <div class="section" id="sec-mihistorial">
+          <div class="page-header">
+            <h2>Mi historial</h2>
+            <p>Tus préstamos y devoluciones</p>
+          </div>
+          <div class="table-card">
+            <table id="tabla-mihistorial-wrapper">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="libro">Libro <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="fechaPrestamo">Prestado <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="fechaDevolucion">Devolución <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="devuelto">Dev. real <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="estado">Estado <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="diasAtraso">Atraso <span class="sort-arrow"></span></th>
+                </tr>
+              </thead>
+              <tbody id="tabla-mihistorial"></tbody>
+            </table>
+            <div id="pagination-mihistorial"></div>
+          </div>
+        </div>
+        <!-- END FEATURE 2 -->
 
         <!-- REPORTES -->
         <div class="section" id="sec-reportes">
@@ -286,10 +405,18 @@
           <div class="stats-grid" id="stats-reportes"></div>
           <div class="table-card">
             <div class="table-header"><h3>Libros más prestados</h3></div>
-            <table>
-              <thead><tr><th>Título</th><th>Autor</th><th>Veces prestado</th></tr></thead>
+            <!-- FEATURE 5: Sortable headers + table id -->
+            <table id="tabla-reportes-wrapper">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="titulo">Título <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="autor">Autor <span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort="count">Veces prestado <span class="sort-arrow"></span></th>
+                </tr>
+              </thead>
               <tbody id="tabla-mas-prestados"></tbody>
             </table>
+            <!-- END FEATURE 5 -->
           </div>
         </div>
 
@@ -431,14 +558,24 @@
     <div class="modal">
       <h3>🔄 Nuevo préstamo</h3>
       <div class="form-grid">
+        <!-- FEATURE 4: SearchSelect combobox for libro and usuario -->
         <div class="form-group">
           <label>Libro *</label>
-          <select class="form-select" id="pres-libro"></select>
+          <div class="combobox" id="combobox-libro">
+            <input class="combobox-input form-input" id="pres-libro-input" type="text" placeholder="Buscar libro..." autocomplete="off">
+            <input type="hidden" id="pres-libro" value="">
+            <div class="combobox-dropdown" id="dropdown-libro"></div>
+          </div>
         </div>
         <div class="form-group">
           <label>Usuario *</label>
-          <select class="form-select" id="pres-usuario"></select>
+          <div class="combobox" id="combobox-usuario">
+            <input class="combobox-input form-input" id="pres-usuario-input" type="text" placeholder="Buscar usuario..." autocomplete="off">
+            <input type="hidden" id="pres-usuario" value="">
+            <div class="combobox-dropdown" id="dropdown-usuario"></div>
+          </div>
         </div>
+        <!-- END FEATURE 4 -->
         <div class="form-row">
           <div class="form-group">
             <label>Fecha de préstamo</label>
