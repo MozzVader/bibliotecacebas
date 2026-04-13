@@ -139,6 +139,29 @@ const UI = {
     setTimeout(() => {
       el.classList.remove("show");
     }, duracion);
+  },
+
+  /**
+   * Alterna entre modo claro y oscuro.
+   * Persiste la preferencia en localStorage.
+   */
+  toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute("data-theme") === "dark";
+    const newTheme = isDark ? "light" : "dark";
+    html.setAttribute("data-theme", newTheme);
+    localStorage.setItem("biblioescolar-theme", newTheme);
+  },
+
+  /**
+   * Aplica el tema guardado en localStorage.
+   * Se llama al inicio para mantener la preferencia del usuario.
+   */
+  aplicarTemaGuardado() {
+    const guardado = localStorage.getItem("biblioescolar-theme");
+    if (guardado) {
+      document.documentElement.setAttribute("data-theme", guardado);
+    }
   }
 };
 
@@ -1816,5 +1839,8 @@ document.getElementById("btn-guardar-usuario")?.addEventListener("click", () => 
 
 // Iniciar el listener de autenticacion
 Auth.init();
+
+// Aplicar tema guardado (dark/light) antes de que se renderice nada
+UI.aplicarTemaGuardado();
 
 console.log("BiblioEscolar inicializado correctamente.");
