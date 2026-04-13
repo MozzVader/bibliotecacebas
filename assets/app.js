@@ -78,6 +78,52 @@ const Utils = {
    */
   generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  },
+
+  /**
+   * Convierte cualquier tipo de fecha (Timestamp, Date, string) a Date
+   */
+  toDate(fecha) {
+    if (!fecha) return null;
+    if (fecha.toDate) return fecha.toDate();
+    if (fecha instanceof Date) return fecha;
+    if (typeof fecha === "string" || typeof fecha === "number") return new Date(fecha);
+    return new Date(fecha);
+  },
+
+  /**
+   * Carga todos los libros y usuarios y devuelve maps {id: nombre}
+   * Se usa como cache para resolver nombres en prestamos que no
+   * tengan libroTitulo / usuarioNombre guardados.
+   */
+  async cargarNombres() {
+    const [librosSnap, usuariosSnap] = await Promise.all([
+      getDocs(collection(db, "libros")),
+      getDocs(collection(db, "usuarios"))
+    ]);
+    const mapLibros = {};
+    const mapUsuarios = {};
+    librosSnap.forEach(d => { mapLibros[d.id] = d.data().titulo || "—"; });
+    usuariosSnap.forEach(d => { mapUsuarios[d.id] = d.data().nombre || "—"; });
+    return { mapLibros, mapUsuarios };
+  },
+
+  /**
+   * Resuelve el nombre de un libro desde el map, con fallback
+   */
+  nombreLibro(data, map) {
+    if (data.libroTitulo) return data.libroTitulo;
+    if (data.libroId && map && map[data.libroId]) return map[data.libroId];
+    return "—";
+  },
+
+  /**
+   * Resuelve el nombre de un usuario desde el map, con fallback
+   */
+  nombreUsuario(data, map) {
+    if (data.usuarioNombre) return data.usuarioNombre;
+    if (data.usuarioId && map && map[data.usuarioId]) return map[data.usuarioId];
+    return "—";
   }
 };
 
@@ -799,6 +845,7 @@ const Prestamos = {
     const tbody = document.getElementById("tabla-prestamos");
 
     try {
+      const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
       const q = query(collection(db, this.coleccion), orderBy("fechaPrestamo", "desc"));
       const snapshot = await getDocs(q);
 
@@ -812,9 +859,6 @@ const Prestamos = {
         if (data.estado === "devuelto") {
           estado = "Devuelto";
           badge = "badge-verde";
-        } else if (data.estado === "vencido") {
-          estado = "Vencido";
-          badge = "badge-rojo";
         } else {
           // Verificar si esta vencido
           if (data.fechaDevolucion && Utils.daysDiff(data.fechaDevolucion) > 0) {
@@ -826,10 +870,13 @@ const Prestamos = {
           }
         }
 
+        const nombreLibro = Utils.nombreLibro(data, mapLibros);
+        const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
+
         html += `
           <tr>
-            <td><strong>${this._esc(data.libroTitulo)}</strong></td>
-            <td>${this._esc(data.usuarioNombre)}</td>
+            <td><strong>${this._esc(nombreLibro)}</strong></td>
+            <td>${this._esc(nombreUsu)}</td>
             <td>${Utils.formatDate(data.fechaPrestamo)}</td>
             <td>${Utils.formatDate(data.fechaDevolucion)}</td>
             <td><span class="badge ${badge}">${estado}</span></td>
@@ -1014,12 +1061,12 @@ const Vencidos = {
     const tbody = document.getElementById("tabla-vencidos");
 
     try {
-      // Obtener todos los prestamos activos
-      const q = query(
-        collection(db, "prestamos"),
-        where("estado", "==", "activo")
-      );
-      const snapshot = await getDocs(q);
+      // Cargar nombres para resolver por ID
+      const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
+
+      // Obtener TODOS los prestamos (sin filtro por estado,
+      // porque datos previos puede que no tengan el campo estado)
+      const prestamosSnap = await getDocs(collection(db, "prestamos"));
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
@@ -1027,23 +1074,27 @@ const Vencidos = {
       let html = "";
       let count = 0;
 
-      snapshot.forEach((docSnap) => {
+      prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
 
-        const fechaDev = data.fechaDevolucion?.toDate
-          ? data.fechaDevolucion.toDate()
-          : new Date(data.fechaDevolucion);
+        // Ignorar devueltos
+        if (data.estado === "devuelto") return;
+
+        const fechaDev = Utils.toDate(data.fechaDevolucion);
+        if (!fechaDev) return;
         fechaDev.setHours(0, 0, 0, 0);
 
         if (fechaDev < hoy) {
           count++;
           const diasAtraso = Utils.daysDiff(data.fechaDevolucion);
+          const nombreLibro = Utils.nombreLibro(data, mapLibros);
+          const nombreUsu = Utils.nombreUsuario(data, mapUsuarios);
 
           html += `
             <tr>
-              <td><strong>${this._esc(data.libroTitulo)}</strong></td>
-              <td>${this._esc(data.usuarioNombre)}</td>
+              <td><strong>${this._esc(nombreLibro)}</strong></td>
+              <td>${this._esc(nombreUsu)}</td>
               <td>${Utils.formatDate(data.fechaDevolucion)}</td>
               <td><span class="badge badge-rojo">${diasAtraso} dias</span></td>
               <td>
@@ -1073,21 +1124,19 @@ const Vencidos = {
    */
   async actualizarBadge() {
     try {
-      const q = query(
-        collection(db, "prestamos"),
-        where("estado", "==", "activo")
-      );
-      const snapshot = await getDocs(q);
+      // Obtener TODOS los prestamos (compatible con datos sin campo estado)
+      const prestamosSnap = await getDocs(collection(db, "prestamos"));
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       let count = 0;
 
-      snapshot.forEach((docSnap) => {
+      prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
-        const fechaDev = data.fechaDevolucion?.toDate
-          ? data.fechaDevolucion.toDate()
-          : new Date(data.fechaDevolucion);
+        if (data.estado === "devuelto") return;
+
+        const fechaDev = Utils.toDate(data.fechaDevolucion);
+        if (!fechaDev) return;
         fechaDev.setHours(0, 0, 0, 0);
 
         if (fechaDev < hoy) count++;
@@ -1121,31 +1170,43 @@ const Dashboard = {
    */
   async render() {
     try {
-      // Contar libros
-      const librosSnap = await getDocs(collection(db, "libros"));
-      const totalLibros = librosSnap.size;
+      // Cargar mapas de nombres (para prestamos que solo guarden IDs)
+      const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
 
-      // Contar usuarios
-      const usuariosSnap = await getDocs(collection(db, "usuarios"));
-      const totalUsuarios = usuariosSnap.size;
+      // Contar libros y usuarios
+      const totalLibros = Object.keys(mapLibros).length;
+      const totalUsuarios = Object.keys(mapUsuarios).length;
 
-      // Prestamos activos y vencidos
+      // Prestamos
       const prestamosSnap = await getDocs(collection(db, "prestamos"));
       let activos = 0;
       let vencidos = 0;
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
+      const ultimosPrestamos = [];
+
       prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data.estado === "activo") {
+        const p = { id: docSnap.id, ...data };
+
+        // Determinar si esta activo/vencido (compatible con datos que no tengan campo estado)
+        const esDevuelto = (data.estado === "devuelto");
+        const esActivo = !esDevuelto;
+
+        if (esActivo) {
           activos++;
-          const fechaDev = data.fechaDevolucion?.toDate
-            ? data.fechaDevolucion.toDate()
-            : new Date(data.fechaDevolucion);
-          fechaDev.setHours(0, 0, 0, 0);
-          if (fechaDev < hoy) vencidos++;
+          const fechaDev = Utils.toDate(data.fechaDevolucion);
+          if (fechaDev) {
+            fechaDev.setHours(0, 0, 0, 0);
+            if (fechaDev < hoy) vencidos++;
+          }
         }
+
+        // Ordenar por fecha
+        const fechaP = Utils.toDate(data.fechaPrestamo);
+        p._sortDate = fechaP ? fechaP.getTime() : 0;
+        ultimosPrestamos.push(p);
       });
 
       // Actualizar contadores
@@ -1154,20 +1215,12 @@ const Dashboard = {
       document.getElementById("stat-vencidos").textContent = vencidos;
       document.getElementById("stat-usuarios").textContent = totalUsuarios;
 
-      // Ultimos 5 prestamos
-      const ultimosPrestamos = [];
-      prestamosSnap.forEach((docSnap) => {
-        ultimosPrestamos.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      ultimosPrestamos.sort((a, b) => {
-        const fechaA = a.fechaPrestamo?.toDate ? a.fechaPrestamo.toDate() : new Date(a.fechaPrestamo);
-        const fechaB = b.fechaPrestamo?.toDate ? b.fechaPrestamo.toDate() : new Date(b.fechaPrestamo);
-        return fechaB - fechaA;
-      });
+      // Ordenar por fecha descendente y tomar 5
+      ultimosPrestamos.sort((a, b) => b._sortDate - a._sortDate);
+      const ultimos5 = ultimosPrestamos.slice(0, 5);
 
       const tbody = document.getElementById("tabla-ultimos");
       let html = "";
-      const ultimos5 = ultimosPrestamos.slice(0, 5);
 
       if (ultimos5.length === 0) {
         html = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--texto-muted)">
@@ -1179,19 +1232,20 @@ const Dashboard = {
           if (p.estado === "devuelto") {
             badge = '<span class="badge badge-verde">Devuelto</span>';
           } else {
-            const fechaDev = p.fechaDevolucion?.toDate
-              ? p.fechaDevolucion.toDate()
-              : new Date(p.fechaDevolucion);
-            fechaDev.setHours(0, 0, 0, 0);
-            badge = fechaDev < hoy
+            const fechaDev = Utils.toDate(p.fechaDevolucion);
+            const vencido = fechaDev && (fechaDev.setHours(0,0,0,0) < hoy.getTime());
+            badge = vencido
               ? '<span class="badge badge-rojo">Vencido</span>'
               : '<span class="badge badge-azul">Activo</span>';
           }
 
+          const nombreLibro = Utils.nombreLibro(p, mapLibros);
+          const nombreUsu = Utils.nombreUsuario(p, mapUsuarios);
+
           html += `
             <tr>
-              <td><strong>${this._esc(p.libroTitulo)}</strong></td>
-              <td>${this._esc(p.usuarioNombre)}</td>
+              <td><strong>${this._esc(nombreLibro)}</strong></td>
+              <td>${this._esc(nombreUsu)}</td>
               <td>${Utils.formatDate(p.fechaDevolucion)}</td>
               <td>${badge}</td>
             </tr>`;
@@ -1254,8 +1308,16 @@ const Reportes = {
 
       // Mapear usuarios por ID para obtener tipo
       const usuariosMap = {};
+      const usuariosNombres = {};
       usuariosSnap.forEach(d => {
         usuariosMap[d.id] = d.data();
+        usuariosNombres[d.id] = d.data().nombre || "—";
+      });
+
+      // Mapear libros por ID para resolver nombres y autores
+      const librosMap = {};
+      librosSnap.forEach(d => {
+        librosMap[d.id] = d.data();
       });
 
       prestamosSnap.forEach((docSnap) => {
@@ -1264,17 +1326,22 @@ const Reportes = {
         if (data.estado === "devuelto") devueltos++;
         else {
           activos++;
-          const fechaDev = data.fechaDevolucion?.toDate
-            ? data.fechaDevolucion.toDate()
-            : new Date(data.fechaDevolucion);
-          fechaDev.setHours(0, 0, 0, 0);
-          if (fechaDev < hoy) vencidos++;
+          const fechaDev = Utils.toDate(data.fechaDevolucion);
+          if (fechaDev) {
+            fechaDev.setHours(0, 0, 0, 0);
+            if (fechaDev < hoy) vencidos++;
+          }
         }
 
-        // Contar por libro
+        // Contar por libro (resolver nombre por ID si no tiene titulo)
         const lid = data.libroId || data.libroTitulo;
+        const tituloLibro = data.libroTitulo
+          || (data.libroId && librosMap[data.libroId]?.titulo)
+          || "—";
+        const autorLibro = data.libroId && librosMap[data.libroId]?.autor
+          ? librosMap[data.libroId].autor : "";
         if (!prestamosPorLibro[lid]) {
-          prestamosPorLibro[lid] = { titulo: data.libroTitulo, autor: "", count: 0 };
+          prestamosPorLibro[lid] = { titulo: tituloLibro, autor: autorLibro, count: 0 };
         }
         prestamosPorLibro[lid].count++;
 
@@ -1284,10 +1351,8 @@ const Reportes = {
         }
 
         // Prestamos del mes
-        const fechaP = data.fechaPrestamo?.toDate
-          ? data.fechaPrestamo.toDate()
-          : new Date(data.fechaPrestamo);
-        if (fechaP >= primerDiaMes) prestamosMes++;
+        const fechaP = Utils.toDate(data.fechaPrestamo);
+        if (fechaP && fechaP >= primerDiaMes) prestamosMes++;
 
         // Por tipo de usuario
         const usu = usuariosMap[data.usuarioId];
@@ -1297,25 +1362,16 @@ const Reportes = {
         }
       });
 
-      // Completar datos de autor desde librosSnap
-      librosSnap.forEach(d => {
-        const lid = d.id;
-        if (prestamosPorLibro[lid]) {
-          prestamosPorLibro[lid].autor = d.data().autor || "";
-        }
-      });
-
       // Top libros mas prestados
       const ranking = Object.values(prestamosPorLibro)
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      // Usuario mas activo
+      // Top usuario mas activo
       let topUsuario = { nombre: "—", cantidad: 0 };
       Object.entries(prestamosPorUsuario).forEach(([uid, cantidad]) => {
         if (cantidad > topUsuario.cantidad) {
-          const usu = usuariosMap[uid];
-          topUsuario = { nombre: usu?.nombre || "—", cantidad };
+          topUsuario = { nombre: usuariosNombres[uid] || "—", cantidad };
         }
       });
 
