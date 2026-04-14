@@ -75,6 +75,9 @@
 
     <!-- HEADER -->
     <header>
+      <button class="btn-hamburger" id="btn-hamburger" onclick="UI.toggleSidebar()" title="Menú">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="logo-icon">📚</div>
       <h1>Biblioteca - CEBAS 2</h1>
       <div class="user-badge">
@@ -102,8 +105,11 @@
 
     <div class="app-body">
 
+      <!-- SIDEBAR OVERLAY (mobile) -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="UI.cerrarSidebar()"></div>
+
       <!-- SIDEBAR -->
-      <div class="sidebar">
+      <div class="sidebar" id="sidebar">
         <div class="nav-section">
           <div class="nav-label">Principal</div>
           <div class="nav-item active" data-sec="inicio" onclick="UI.navigate(this,'inicio')">
