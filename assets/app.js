@@ -193,6 +193,9 @@ const UI = {
     const target = document.getElementById("sec-" + seccion);
     if (target) target.classList.add("active");
 
+    // Cerrar sidebar drawer en mobile al navegar
+    this.cerrarSidebar();
+
     switch (seccion) {
       case "inicio":      Dashboard.render(); break;
       case "catalogo":    Catalogo.render(); break;
@@ -206,6 +209,34 @@ const UI = {
 
     // Feature 1: Close notification dropdown on navigation
     Notificaciones.cerrar();
+  },
+
+  /**
+   * Toggle del sidebar drawer (mobile).
+   * Abre o cierra el menú lateral con overlay.
+   */
+  toggleSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebar-overlay");
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.contains("open");
+    if (isOpen) {
+      sidebar.classList.remove("open");
+      overlay?.classList.remove("visible");
+    } else {
+      sidebar.classList.add("open");
+      overlay?.classList.add("visible");
+    }
+  },
+
+  /**
+   * Cierra el sidebar drawer (mobile).
+   */
+  cerrarSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebar-overlay");
+    if (sidebar) sidebar.classList.remove("open");
+    if (overlay) overlay.classList.remove("visible");
   },
 
   abrirModal(id) {
@@ -254,6 +285,17 @@ const UI = {
     if (guardado) {
       document.documentElement.setAttribute("data-theme", guardado);
     }
+  },
+
+  /**
+   * Responsive: cerrar sidebar drawer si se agranda la ventana a desktop.
+   */
+  initResponsive() {
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 768) {
+        this.cerrarSidebar();
+      }
+    });
   }
 };
 
@@ -601,6 +643,8 @@ const Auth = {
         Vencidos.actualizarBadge();
         // Feature 1: Load notifications on login
         Notificaciones.cargar();
+        // Responsive: init sidebar drawer listener
+        UI.initResponsive();
       } else {
         // Sin autenticacion: mostrar login
         loginScreen.style.display = "";
