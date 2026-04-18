@@ -39,30 +39,35 @@ const Utils = {
   },
 
   daysDiff(fechaFin) {
-    const fin = fechaFin.toDate ? fechaFin.toDate() : new Date(fechaFin);
+    const fin = new Date(fechaFin.toDate ? fechaFin.toDate() : new Date(fechaFin));
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     fin.setHours(0, 0, 0, 0);
     return Math.ceil((hoy - fin) / (1000 * 60 * 60 * 24));
   },
 
+  _loadingCount: 0,
   loading(show) {
     const el = document.getElementById("loading-overlay");
     if (show) {
+      this._loadingCount++;
       el.style.display = "flex";
     } else {
-      el.style.display = "none";
+      this._loadingCount = Math.max(0, this._loadingCount - 1);
+      if (this._loadingCount === 0) {
+        el.style.display = "none";
+      }
     }
   },
 
   generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
   },
 
   toDate(fecha) {
     if (!fecha) return null;
-    if (fecha.toDate) return fecha.toDate();
-    if (fecha instanceof Date) return fecha;
+    if (fecha.toDate) return new Date(fecha.toDate().getTime());
+    if (fecha instanceof Date) return new Date(fecha.getTime());
     if (typeof fecha === "string" || typeof fecha === "number") return new Date(fecha);
     return new Date(fecha);
   },
@@ -100,7 +105,18 @@ const Utils = {
 
   _escAttr(str) {
     if (!str) return "";
-    return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  },
+
+  _debounceTimers: {},
+  debounce(key, fn, delay = 300) {
+    if (this._debounceTimers[key]) clearTimeout(this._debounceTimers[key]);
+    this._debounceTimers[key] = setTimeout(fn, delay);
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -290,7 +306,10 @@ const UI = {
   /**
    * Responsive: cerrar sidebar drawer si se agranda la ventana a desktop.
    */
+  _responsiveInitialized: false,
   initResponsive() {
+    if (this._responsiveInitialized) return;
+    this._responsiveInitialized = true;
     window.addEventListener("resize", () => {
       if (window.innerWidth > 768) {
         this.cerrarSidebar();
@@ -2036,6 +2055,15 @@ const SearchSelect = {
     const dropdown = document.getElementById(dropdownId);
     if (!input || !dropdown) return;
 
+    // If already initialized, just update items and reset
+    if (this._instances[inputId]) {
+      this._instances[inputId].items = items;
+      this._instances[inputId].onChange = onChange;
+      this._instances[inputId].highlightedIndex = -1;
+      this.reset(inputId);
+      return;
+    }
+
     this._instances[inputId] = { items, onChange, hiddenId, highlightedIndex: -1 };
 
     input.addEventListener('input', () => {
@@ -2338,7 +2366,8 @@ const Reportes = {
 
       this._ranking = Object.values(prestamosPorLibro)
         .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        .slice(0, 10)
+        .map((item, i) => ({ ...item, rank: i + 1 }));
 
       let topUsuario = { nombre: "—", cantidad: 0 };
       Object.entries(prestamosPorUsuario).forEach(([uid, cantidad]) => {
@@ -2404,7 +2433,7 @@ const Reportes = {
       </td></tr>`;
     } else {
       this._ranking.forEach((libro, i) => {
-        const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+        const medalla = libro.rank === 1 ? "🥇" : libro.rank === 2 ? "🥈" : libro.rank === 3 ? "🥉" : `${libro.rank}.`;
         rankingHTML += `
           <tr>
             <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
@@ -2426,7 +2455,7 @@ const Reportes = {
     });
     let html = "";
     sorted.forEach((libro, i) => {
-      const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      const medalla = libro.rank === 1 ? "🥇" : libro.rank === 2 ? "🥈" : libro.rank === 3 ? "🥉" : `${libro.rank}.`;
       html += `
         <tr>
           <td>${medalla} <strong>${Utils._esc(libro.titulo)}</strong></td>
@@ -2548,8 +2577,9 @@ document.querySelectorAll(".overlay").forEach(overlay => {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       overlay.classList.remove("open");
-      Catalogo._resetModal();
-      Usuarios._prepararModalAgregar();
+      // Only reset the specific modal that was closed
+      if (overlay.id === "modal-libro") Catalogo._resetModal();
+      if (overlay.id === "modal-usuario") Usuarios._prepararModalAgregar();
     }
   });
 });
