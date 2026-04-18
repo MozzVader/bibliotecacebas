@@ -12,6 +12,137 @@ import {
 } from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
+//  AUDIT LOG — Registro de eventos
+// ══════════════════════════════════════════════════════════════
+
+const AuditLog = {
+  coleccion: "audit_log",
+  _page: 1,
+  _perPage: 25,
+  _sortBy: "timestamp",
+  _sortDir: "desc",
+  _filtroEntidad: "",
+  _filtroAccion: "",
+  _filtroTexto: "",
+
+  async registrar(accion, entidad, entidadId, detalles) {
+    try {
+      await addDoc(collection(db, this.coleccion), {
+        userId: Roles.usuarioDocId || null,
+        userNombre: Roles.usuarioNombre || (auth.currentUser?.email || "Sistema"),
+        userRol: Roles.actual || "desconocido",
+        accion,        // crear, editar, eliminar, devolver, configurar, registro
+        entidad,       // libro, usuario, prestamo, config
+        entidadId: entidadId || null,
+        detalles,      // descripción legible del evento
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Error al registrar audit log:", e);
+    }
+  },
+
+  async render() {
+    Utils.loading(true);
+    try {
+      let q = collection(db, this.coleccion);
+
+      // Construir query con filtros
+      const constraints = [];
+
+      // Orden principal
+      const sortField = this._sortBy === "timestamp" ? "timestamp" : "timestamp";
+      constraints.push(orderBy(sortField, this._sortDir));
+
+      // Filtros opcionales
+      if (this._filtroEntidad) constraints.unshift(where("entidad", "==", this._filtroEntidad));
+      if (this._filtroAccion) constraints.unshift(where("accion", "==", this._filtroAccion));
+
+      const querySnap = await getDocs(query(q, ...constraints));
+
+      let datos = [];
+      querySnap.forEach(d => datos.push({ id: d.id, ...d.data() }));
+
+      // Filtro de texto (client-side)
+      if (this._filtroTexto) {
+        const txt = this._filtroTexto.toLowerCase();
+        datos = datos.filter(e =>
+          (e.userNombre || "").toLowerCase().includes(txt) ||
+          (e.detalles || "").toLowerCase().includes(txt) ||
+          (e.entidad || "").toLowerCase().includes(txt) ||
+          (e.accion || "").toLowerCase().includes(txt)
+        );
+      }
+
+      // Paginación
+      const total = datos.length;
+      const totalPages = Math.max(1, Math.ceil(total / this._perPage));
+      if (this._page > totalPages) this._page = totalPages;
+      const start = (this._page - 1) * this._perPage;
+      const datosPaginados = datos.slice(start, start + this._perPage);
+
+      // Renderizar tabla
+      const tbody = document.getElementById("tabla-auditlog");
+      if (!tbody) return;
+
+      if (datosPaginados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--texto-muted)">No hay eventos registrados</td></tr>';
+        document.getElementById("pagination-auditlog").innerHTML = "";
+        return;
+      }
+
+      tbody.innerHTML = datosPaginados.map(e => {
+        const fecha = this._formatTimestamp(e.timestamp);
+        const badgeAccion = this._badgeAccion(e.accion);
+        const badgeEntidad = this._badgeEntidad(e.entidad);
+        return `<tr>
+          <td>${fecha}</td>
+          <td>${Utils._esc(e.userNombre)}</td>
+          <td>${badgeAccion}</td>
+          <td>${badgeEntidad}</td>
+          <td>${Utils._esc(e.detalles)}</td>
+        </tr>`;
+      }).join("");
+
+      Utils.renderPagination("pagination-auditlog", total, this._page, this._perPage, (p) => { this._page = p; this.render(); });
+      Utils.initSortableHeaders("tabla-auditlog-wrapper", (col, dir) => { this._sortBy = col; this._sortDir = dir; this._page = 1; this.render(); });
+
+    } catch (err) {
+      console.error("Error al cargar audit log:", err);
+    } finally {
+      Utils.loading(false);
+    }
+  },
+
+  _formatTimestamp(ts) {
+    if (!ts) return "—";
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleString("es-AR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  },
+
+  _badgeAccion(accion) {
+    const colores = {
+      crear:    "badge-verde",
+      editar:   "badge-amarillo",
+      eliminar: "badge-rojo",
+      devolver: "badge-azul",
+      configurar: "badge-amarillo",
+      registro: "badge-verde"
+    };
+    const cls = colores[accion] || "";
+    return `<span class="badge ${cls}" style="text-transform:capitalize">${Utils._esc(accion)}</span>`;
+  },
+
+  _badgeEntidad(entidad) {
+    const etiquetas = { libro: "Libro", usuario: "Usuario", prestamo: "Préstamo", config: "Configuración" };
+    return `<span style="font-size:12px;color:var(--texto-muted)">${etiquetas[entidad] || Utils._esc(entidad)}</span>`;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
 //  UTILIDADES
 // ══════════════════════════════════════════════════════════════
 
@@ -221,6 +352,7 @@ const UI = {
       case "reportes":    Reportes.render(); break;
       case "config":      Config.cargar(); break;
       case "mihistorial": MiHistorial.render(); break;
+      case "auditlog":    AuditLog.render(); break;
     }
 
     // Feature 1: Close notification dropdown on navigation
@@ -346,9 +478,9 @@ const Roles = {
 
   // Permisos de visibilidad en el sidebar
   permisosSidebar: {
-    administrativo: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true, mihistorial: true },
-    docente:        { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false, mihistorial: true },
-    alumno:         { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false, mihistorial: true }
+    administrativo: { inicio: true, catalogo: true, prestamos: true, usuarios: true, vencidos: true, reportes: true, config: true, mihistorial: true, auditlog: true },
+    docente:        { inicio: true, catalogo: true, prestamos: true, usuarios: false, vencidos: true, reportes: true, config: false, mihistorial: true, auditlog: false },
+    alumno:         { inicio: true, catalogo: true, prestamos: false, usuarios: false, vencidos: false, reportes: true, config: false, mihistorial: true, auditlog: false }
   },
 
   // Permisos de escritura (acciones)
@@ -546,6 +678,9 @@ const Auth = {
         tipo: "Alumno",
         createdAt: serverTimestamp()
       });
+
+      // Log de registro (el usuario aun no tiene Roles cargado, usamos datos directos)
+      AuditLog.registrar("registro", "usuario", uid, `Auto-registro: "${nombre}" (${email})`);
 
       // La sesion queda iniciada automaticamente.
       // onAuthStateChanged se encarga del resto.
@@ -826,6 +961,8 @@ const Catalogo = {
         createdAt: serverTimestamp()
       });
 
+      AuditLog.registrar("crear", "libro", null, `Libro "${titulo}" creado (${ejemplares} ejemplares, género: ${genero})`);
+
       document.getElementById("libro-titulo").value = "";
       document.getElementById("libro-autor").value = "";
       document.getElementById("libro-isbn").value = "";
@@ -895,6 +1032,8 @@ const Catalogo = {
         disponibles: nuevosDisponibles
       });
 
+      AuditLog.registrar("editar", "libro", id, `Libro "${titulo}" editado`);
+
       this._resetModal();
       UI.cerrarModal("modal-libro");
       UI.mostrarAlerta("alert-libro", `Libro "${titulo}" actualizado correctamente.`);
@@ -927,6 +1066,7 @@ const Catalogo = {
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
+      AuditLog.registrar("eliminar", "libro", id, `Libro "${titulo}" eliminado del catálogo`);
       UI.mostrarAlerta("alert-libro", `"${titulo}" eliminado del catalogo.`);
       this.render();
     } catch (error) {
@@ -1232,6 +1372,8 @@ const Usuarios = {
 
       await addDoc(collection(db, this.coleccion), docData);
 
+      AuditLog.registrar("crear", "usuario", null, `Usuario "${nombre}" creado (tipo: ${tipo})`);
+
       UI.cerrarModal("modal-usuario");
       UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado correctamente.${linkMsg}`);
       this.render();
@@ -1391,6 +1533,8 @@ const Usuarios = {
 
       await updateDoc(doc(db, this.coleccion, id), datosActualizar);
 
+      AuditLog.registrar("editar", "usuario", id, `Usuario "${nombre}" editado (tipo: ${tipo})`);
+
       this._prepararModalAgregar();
       UI.cerrarModal("modal-usuario");
       UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" actualizado.`);
@@ -1438,6 +1582,7 @@ const Usuarios = {
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
+      AuditLog.registrar("eliminar", "usuario", id, `Usuario "${nombre}" eliminado`);
       UI.mostrarAlerta("alert-usuario", `"${nombre}" eliminado.`);
       this.render();
     } catch (error) {
@@ -1649,6 +1794,8 @@ const Prestamos = {
         disponibles: increment(-1)
       });
 
+      AuditLog.registrar("crear", "prestamo", null, `Préstamo: "${libroTitulo}" → ${usuarioNombre}`);
+
       UI.cerrarModal("modal-prestamo");
       UI.mostrarAlerta("alert-prestamo", `Prestamo de "${libroTitulo}" registrado.`);
       this.render();
@@ -1683,6 +1830,8 @@ const Prestamos = {
       await updateDoc(doc(db, "libros", data.libroId), {
         disponibles: increment(1)
       });
+
+      AuditLog.registrar("devolver", "prestamo", id, `Devolución: "${data.libroTitulo}" (${data.usuarioNombre})`);
 
       UI.mostrarAlerta("alert-prestamo", `"${data.libroTitulo}" devuelto correctamente.`);
       this.render();
@@ -2554,6 +2703,8 @@ const Config = {
         nombreInstitucion, diasPrestamo, nombreBibliotecario,
         updatedAt: serverTimestamp()
       });
+
+      AuditLog.registrar("configurar", "config", this.docId, `Configuración actualizada: ${diasPrestamo} días de préstamo`);
 
       UI.mostrarAlerta("alert-config", "Configuracion guardada correctamente.");
     } catch (error) {

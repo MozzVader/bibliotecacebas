@@ -193,6 +193,13 @@
               </span> Usuarios
             </div>
             <!-- Futuro: Log de eventos -->
+            <div class="nav-item" data-sec="auditlog" onclick="UI.navigate(this,'auditlog')">
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+              </span> Log de eventos
+            </div>
             <div class="nav-item" data-sec="config" onclick="UI.navigate(this,'config')">
               <span class="icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -483,6 +490,50 @@
               Desde la sección <strong>"Usuarios"</strong>, un administrativo puede cambiar el tipo/rol
               de cualquier usuario.</p>
             </div>
+          </div>
+        </div>
+
+        <!-- LOG DE EVENTOS -->
+        <div class="section" id="sec-auditlog">
+          <div class="page-header">
+            <h2>Log de eventos</h2>
+            <p>Registro de actividad del sistema</p>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="buscar-auditlog" placeholder="Buscar por usuario, acción o detalle..." oninput="Utils.debounce('buscar-auditlog', ()=>{AuditLog._filtroTexto=this.value; AuditLog._page=1; AuditLog.render()})">
+          </div>
+          <div class="filter-bar" style="display:flex;gap:8px;flex-wrap:wrap">
+            <select class="filter-select" id="filtro-audit-entidad" onchange="AuditLog._filtroEntidad=this.value; AuditLog._page=1; AuditLog.render()">
+              <option value="">Todas las entidades</option>
+              <option value="libro">Libros</option>
+              <option value="usuario">Usuarios</option>
+              <option value="prestamo">Préstamos</option>
+              <option value="config">Configuración</option>
+            </select>
+            <select class="filter-select" id="filtro-audit-accion" onchange="AuditLog._filtroAccion=this.value; AuditLog._page=1; AuditLog.render()">
+              <option value="">Todas las acciones</option>
+              <option value="crear">Crear</option>
+              <option value="editar">Editar</option>
+              <option value="eliminar">Eliminar</option>
+              <option value="devolver">Devolver</option>
+              <option value="configurar">Configurar</option>
+              <option value="registro">Registro</option>
+            </select>
+          </div>
+          <div class="table-card">
+            <table id="tabla-auditlog-wrapper">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="timestamp">Fecha / Hora <span class="sort-arrow"></span></th>
+                  <th>Usuario</th>
+                  <th>Acción</th>
+                  <th>Entidad</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-auditlog"></tbody>
+            </table>
+            <div id="pagination-auditlog"></div>
           </div>
         </div>
 
