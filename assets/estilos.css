@@ -1267,67 +1267,71 @@ th.sortable.desc .sort-arrow {
   margin-top: 2px;
 }
 
-/* ── CARGA MASIVA: Dropzone ─────────────────── */
-.dropzone {
+/* ── CARGA MASIVA: Dropzone (import-drop) ────── */
+.import-drop {
   border: 2px dashed var(--borde);
   border-radius: 12px;
-  padding: 2rem 1.5rem;
+  padding: 2.5rem 1.5rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
   background: var(--gris-100);
 }
 
-.dropzone:hover,
-.dropzone.drag-over {
+.import-drop:hover,
+.import-drop.drag-over {
   border-color: var(--verde);
   background: var(--verde-claro);
 }
 
-.dropzone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+/* ── CARGA MASIVA: Spinner inline ─────────────── */
+.spinner-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gris-300);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-left: 6px;
 }
 
-.dropzone-file {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-/* ── CARGA MASIVA: Progress Bar ─────────────── */
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--gris-200);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--verde), var(--verde-oscuro));
-  border-radius: 4px;
-  transition: width 0.3s ease;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── CARGA MASIVA: Tabla previa ─────────────── */
-#tabla-carga-previa tbody tr {
+#carga-previa-head th {
+  position: sticky;
+  top: 0;
+  background: var(--fondo-card);
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 2px solid var(--borde);
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+#carga-previa-body tr {
   border-bottom: 1px solid var(--borde);
 }
 
-#tabla-carga-previa tbody tr:last-child {
+#carga-previa-body tr:last-child {
   border-bottom: none;
 }
 
-#tabla-carga-previa tbody td {
-  padding: 6px 8px;
+#carga-previa-body td {
+  padding: 6px 10px;
   color: var(--texto);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#tabla-carga-previa tbody tr:hover {
+#carga-previa-body tr:hover {
   background: var(--gris-100);
 }
