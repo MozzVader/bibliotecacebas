@@ -1687,7 +1687,12 @@ const Prestamos = {
             <td><span class="badge ${item.badge}">${item.estado}</span></td>
             <td>
               ${item.estado !== "Devuelto"
-                ? `<button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${item.id}')">Devolver</button>`
+                ? `<div style="display:flex;gap:4px;flex-wrap:wrap">
+                     ${(item.estado === "Activo" && (item.renovaciones || 0) < 1)
+                       ? `<button class="btn btn-sm" style="background:var(--badge-amarillo-bg);color:var(--badge-amarillo-txt);border:1px solid var(--badge-amarillo-txt)" onclick="Prestamos.renovar('${item.id}')" title="Extender devolucion">Renovar</button>`
+                       : ""}
+                     <button class="btn btn-sm btn-primary" onclick="Prestamos.devolver('${item.id}')">Devolver</button>
+                   </div>`
                 : '<span style="color:var(--texto-muted);font-size:11px">Finalizado</span>'}
             </td>
           </tr>`;
@@ -1787,6 +1792,7 @@ const Prestamos = {
         fechaPrestamo: new Date(fechaPrestamo + "T12:00:00"),
         fechaDevolucion: new Date(fechaDevolucion + "T12:00:00"),
         estado: "activo",
+        renovaciones: 0,
         createdAt: serverTimestamp()
       });
 
@@ -1840,6 +1846,53 @@ const Prestamos = {
     } catch (error) {
       console.error("Error al registrar devolucion:", error);
       UI.mostrarAlerta("alert-prestamo", "Error al registrar devolucion.", "danger");
+    } finally {
+      Utils.loading(false);
+    }
+  },
+
+  async renovar(id) {
+    if (!confirm("Renovar este prestamo por 7 dias mas?")) return;
+
+    Utils.loading(true);
+
+    try {
+      const docSnap = await getDoc(doc(db, this.coleccion, id));
+      const data = docSnap.data();
+
+      if (!data) {
+        UI.mostrarAlerta("alert-prestamo", "Prestamo no encontrado.", "danger");
+        return;
+      }
+      if (data.estado !== "activo") {
+        UI.mostrarAlerta("alert-prestamo", "Solo se pueden renovar prestamos activos.", "danger");
+        return;
+      }
+      if ((data.renovaciones || 0) >= 1) {
+        UI.mostrarAlerta("alert-prestamo", "Este prestamo ya fue renovado. No se permite mas de una renovacion.", "danger", 4000);
+        return;
+      }
+
+      // Obtener dias de prestamo desde config
+      const dias = await Config.obtenerDias() || 7;
+      const fechaDevActual = data.fechaDevolucion.toDate ? data.fechaDevolucion.toDate() : new Date(data.fechaDevolucion);
+      const nuevaFechaDev = new Date(fechaDevActual);
+      nuevaFechaDev.setDate(nuevaFechaDev.getDate() + dias);
+
+      await updateDoc(doc(db, this.coleccion, id), {
+        fechaDevolucion: nuevaFechaDev,
+        renovaciones: (data.renovaciones || 0) + 1
+      });
+
+      AuditLog.registrar("editar", "prestamo", id, `Renovacion: "${data.libroTitulo}" (${data.usuarioNombre}) - nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
+
+      UI.mostrarAlerta("alert-prestamo", `"${data.libroTitulo}" renovado. Nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
+      this.render();
+      Vencidos.actualizarBadge();
+      Notificaciones.cargar();
+    } catch (error) {
+      console.error("Error al renovar prestamo:", error);
+      UI.mostrarAlerta("alert-prestamo", "Error al renovar el prestamo.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -2052,7 +2105,8 @@ const MiHistorial = {
           fechaRealDevolucion: data.fechaRealDevolucion ? Utils.toDate(data.fechaRealDevolucion) : null,
           estado,
           devuelto: data.fechaRealDevolucion ? Utils.formatDate(data.fechaRealDevolucion) : "—",
-          diasAtraso
+          diasAtraso,
+          renovaciones: data.renovaciones || 0
         });
       });
 
@@ -2089,7 +2143,14 @@ const MiHistorial = {
             <td>${Utils.formatDate(item.fechaDevolucion)}</td>
             <td>${Utils._esc(item.devuelto)}</td>
             <td><span class="badge ${badge}">${item.estado}</span></td>
-            <td>${atraso}</td>
+            <td>
+              <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+                ${atraso}
+                ${item.estado === "Activo" && item.renovaciones < 1
+                  ? `<button class="btn btn-sm" style="background:var(--badge-amarillo-bg);color:var(--badge-amarillo-txt);border:1px solid var(--badge-amarillo-txt)" onclick="Prestamos.renovar('${item.id}')">Renovar</button>`
+                  : ""}
+              </div>
+            </td>
           </tr>`;
         });
       }
