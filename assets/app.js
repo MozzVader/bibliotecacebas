@@ -2337,7 +2337,7 @@ const Vencidos = {
             usuario: nombreUsu,
             fecha: fechaDev,
             fechaRaw: data.fechaDevolucion,
-            dias
+            dias: diasAtraso
           });
         }
       });
