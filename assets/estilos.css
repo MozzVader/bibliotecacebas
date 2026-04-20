@@ -7,10 +7,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  /* Brand */
-  --verde:        #1D9E75;
-  --verde-claro:  #E8F7F2;
-  --verde-oscuro: #085041;
+  /* Brand — Paleta basada en #1c3e56 */
+  --verde:        #1c3e56;
+  --verde-claro:  #e3edf4;
+  --verde-oscuro: #132c3e;
 
   /* Layout */
   --sidebar-w:  230px;
@@ -18,7 +18,7 @@
 
   /* ── Light theme (default) ── */
   --fondo:           #E8ECF4;
-  --fondo-degradado: linear-gradient(135deg, #D6E4F0 0%, #E4ECF4 25%, #DAF0EA 55%, #E8ECF4 100%);
+  --fondo-degradado: linear-gradient(135deg, #D6E4F0 0%, #E4ECF4 25%, #E0ECF4 55%, #E8ECF4 100%);
   --glass-bg:        rgba(255, 255, 255, 0.42);
   --glass-bg-solid:  #FFFFFF;
   --glass-border:    rgba(255, 255, 255, 0.55);
@@ -44,7 +44,7 @@
   --sidebar-border: rgba(255, 255, 255, 0.55);
 
   /* Header */
-  --header-bg: linear-gradient(135deg, #065F46 0%, #085041 50%, #0A3D32 100%);
+  --header-bg: linear-gradient(135deg, #1c3e56 0%, #162f44 50%, #0e2030 100%);
   --header-border: rgba(255, 255, 255, 0.08);
 
   /* Table */
@@ -56,14 +56,14 @@
   --modal-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
 
   /* Login */
-  --login-bg: linear-gradient(145deg, #064E3B 0%, #085041 40%, #0A3D32 70%, #063D2F 100%);
+  --login-bg: linear-gradient(145deg, #1c3e56 0%, #162f44 40%, #0e2030 70%, #0a1824 100%);
   --login-card-bg:      rgba(255, 255, 255, 0.78);
   --login-card-border:  rgba(255, 255, 255, 0.35);
   --login-card-shadow:  0 8px 40px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.08);
 
   /* Badges */
-  --badge-verde-bg:   #ECFDF5;
-  --badge-verde-txt:  #065F46;
+  --badge-verde-bg:   #edf5fa;
+  --badge-verde-txt:  #1c3e56;
   --badge-rojo-bg:    #FEF3F2;
   --badge-rojo-txt:   #B42318;
   --badge-amarillo-bg:#FFFAEB;
@@ -72,9 +72,9 @@
   --badge-azul-txt:   #175CD3;
 
   /* Alerts */
-  --alert-success-bg:  #ECFDF5;
-  --alert-success-txt: #065F46;
-  --alert-success-bdr: #A7F3D0;
+  --alert-success-bg:  #edf5fa;
+  --alert-success-txt: #1c3e56;
+  --alert-success-bdr: #b3d4e8;
   --alert-danger-bg:   #FEF3F2;
   --alert-danger-txt:  #B42318;
   --alert-danger-bdr:  #FDA29B;
@@ -89,7 +89,7 @@
 /* ── Dark theme ── */
 [data-theme="dark"] {
   --fondo:           #0E1418;
-  --fondo-degradado: linear-gradient(135deg, #0B1210 0%, #0E1418 25%, #101A16 55%, #0E1418 100%);
+  --fondo-degradado: linear-gradient(135deg, #0C1218 0%, #0E1418 25%, #0F1820 55%, #0E1418 100%);
   --glass-bg:        rgba(30, 34, 43, 0.45);
   --glass-bg-solid:  #1E222B;
   --glass-border:    rgba(255, 255, 255, 0.08);
@@ -115,7 +115,7 @@
   --sidebar-border: rgba(255, 255, 255, 0.07);
 
   /* Header */
-  --header-bg: linear-gradient(135deg, #0A3D32 0%, #073D30 50%, #062E24 100%);
+  --header-bg: linear-gradient(135deg, #0e2030 0%, #0b1a28 50%, #081420 100%);
   --header-border: rgba(255, 255, 255, 0.05);
 
   /* Table */
@@ -127,14 +127,14 @@
   --modal-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
 
   /* Login */
-  --login-bg: linear-gradient(145deg, #042F24 0%, #063D2F 40%, #042A20 100%);
+  --login-bg: linear-gradient(145deg, #0e2030 0%, #0b1a28 40%, #081420 100%);
   --login-card-bg:      rgba(22, 30, 28, 0.8);
   --login-card-border:  rgba(255, 255, 255, 0.08);
   --login-card-shadow:  0 8px 40px rgba(0, 0, 0, 0.35);
 
   /* Badges */
-  --badge-verde-bg:   rgba(6, 95, 70, 0.2);
-  --badge-verde-txt:  #34D399;
+  --badge-verde-bg:   rgba(28, 62, 86, 0.25);
+  --badge-verde-txt:  #6bb8d9;
   --badge-rojo-bg:    rgba(180, 35, 24, 0.15);
   --badge-rojo-txt:   #F87171;
   --badge-amarillo-bg:rgba(181, 71, 8, 0.15);
@@ -143,9 +143,9 @@
   --badge-azul-txt:   #60A5FA;
 
   /* Alerts */
-  --alert-success-bg:  rgba(6, 95, 70, 0.15);
-  --alert-success-txt: #34D399;
-  --alert-success-bdr: rgba(52, 211, 153, 0.25);
+  --alert-success-bg:  rgba(28, 62, 86, 0.18);
+  --alert-success-txt: #6bb8d9;
+  --alert-success-bdr: rgba(107, 184, 217, 0.25);
   --alert-danger-bg:   rgba(180, 35, 24, 0.12);
   --alert-danger-txt:  #F87171;
   --alert-danger-bdr:  rgba(248, 113, 113, 0.25);
@@ -153,8 +153,8 @@
   /* Loading */
   --loading-bg: rgba(15, 17, 23, 0.8);
 
-  /* Verde claro dark */
-  --verde-claro: rgba(29, 158, 117, 0.12);
+  /* Verde claro dark (activo sidebar) */
+  --verde-claro: rgba(28, 62, 86, 0.18);
 }
 
 body {
@@ -178,18 +178,18 @@ body::after {
 }
 body::before {
   width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(29, 158, 117, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(28, 62, 86, 0.12) 0%, transparent 70%);
   top: -80px; right: -120px;
   filter: blur(60px);
 }
 body::after {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(107, 184, 217, 0.06) 0%, transparent 70%);
   bottom: -100px; left: -80px;
   filter: blur(60px);
 }
 [data-theme="dark"] body::before {
-  background: radial-gradient(circle, rgba(29, 158, 117, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(28, 62, 86, 0.06) 0%, transparent 70%);
 }
 [data-theme="dark"] body::after {
   background: radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 70%);
@@ -224,12 +224,12 @@ body::after {
 }
 .login-overlay::before {
   width: 400px; height: 400px;
-  background: #34D399;
+  background: #6bb8d9;
   top: -100px; right: -80px;
 }
 .login-overlay::after {
   width: 300px; height: 300px;
-  background: #1D9E75;
+  background: #1c3e56;
   bottom: -80px; left: -60px;
 }
 
@@ -281,8 +281,8 @@ header {
 }
 header .logo-icon {
   width: 34px; height: 34px;
-  background: rgba(29, 158, 117, 0.25);
-  border: 1px solid rgba(29, 158, 117, 0.35);
+  background: rgba(28, 62, 86, 0.35);
+  border: 1px solid rgba(28, 62, 86, 0.45);
   border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px;
