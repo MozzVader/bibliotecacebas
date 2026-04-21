@@ -1253,7 +1253,7 @@ th.sortable.desc .sort-arrow {
   white-space: nowrap;
 }
 .filter-date-input {
-  padding: 7px 10px;
+  padding: 9px 10px;
   border: 1px solid var(--borde);
   border-radius: 6px;
   font-size: 13px;
@@ -1263,10 +1263,18 @@ th.sortable.desc .sort-arrow {
   outline: none;
   transition: all 0.18s;
   min-width: 135px;
+  color-scheme: light;
+}
+[data-theme="dark"] .filter-date-input {
+  color-scheme: dark;
 }
 .filter-date-input:focus {
   border-color: var(--verde);
   box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.1);
+}
+.filter-date-input::-webkit-calendar-picker-indicator {
+  filter: opacity(0.5);
+  cursor: pointer;
 }
 
 .pagination {
