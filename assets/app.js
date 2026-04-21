@@ -2097,7 +2097,7 @@ const Comprobante = {
         <div class="comprobante-header">
           <img class="comprobante-logo" src="assets/logo-cebas48.png" alt="CEBAS">
           <div class="comprobante-titulo">Biblioteca CEBAS</div>
-          <div class="comprobante-subtitulo">Centro de Educación Básica para Adultos y Secundaria</div>
+          <div class="comprobante-subtitulo">Centro Especial de Bachillerato para Adultos en Salud</div>
           <div style="margin-top:0.75rem">
             <span class="comprobante-tipo-badge ${badgeClass}">${badgeTexto}</span>
           </div>
