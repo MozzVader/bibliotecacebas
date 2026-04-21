@@ -40,37 +40,6 @@
           <input class="form-input" id="login-password" type="password" placeholder="••••••">
         </div>
         <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.login()">Ingresar</button>
-        <p class="login-hint">
-          ¿No tenés cuenta? <a href="#" onclick="Auth.mostrarRegistro(); return false;" style="color:var(--verde);font-weight:500">Registrate acá</a>
-        </p>
-      </div>
-
-      <!-- FORMULARIO REGISTRO (auto-registro: rol por defecto = Alumno) -->
-      <div id="form-registro" style="display:none">
-        <div class="form-group">
-          <label>Nombre completo *</label>
-          <input class="form-input" id="reg-nombre" type="text" placeholder="Juan Pérez">
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label>DNI *</label>
-          <input class="form-input" id="reg-dni" type="text" placeholder="Ej: 30407325" inputmode="numeric">
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label>Email *</label>
-          <input class="form-input" id="reg-email" type="email" placeholder="juan@correo.com">
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label>Contraseña * <span style="font-weight:400;font-size:11px;color:var(--texto-muted)">(mínimo 6 caracteres)</span></label>
-          <input class="form-input" id="reg-password" type="password" placeholder="••••••">
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label>Repetir contraseña *</label>
-          <input class="form-input" id="reg-password2" type="password" placeholder="••••••">
-        </div>
-        <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="Auth.registrar()">Crear cuenta</button>
-        <p class="login-hint">
-          ¿Ya tenés cuenta? <a href="#" onclick="Auth.mostrarLogin(); return false;" style="color:var(--verde);font-weight:500">Ingresá acá</a>
-        </p>
       </div>
 
     </div>
