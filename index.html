@@ -344,12 +344,23 @@
           </div>
           <!-- FEATURE 3: Filter bar -->
           <div class="filter-bar">
-            <select class="filter-select" id="filtro-estado" onchange="Prestamos._filtroEstado=this.value; Prestamos._page=1; Prestamos.render()">
+            <select class="filter-select" id="filtro-estado" onchange="Prestamos._page=1; Prestamos.render()">
               <option value="">Todos los estados</option>
               <option value="activo">Activo</option>
               <option value="devuelto">Devuelto</option>
               <option value="vencido">Vencido</option>
             </select>
+            <div class="filter-date-group">
+              <label for="filtro-prestamos-desde">Desde</label>
+              <input type="date" id="filtro-prestamos-desde" class="filter-date-input" onchange="Prestamos._page=1; Prestamos.render()">
+            </div>
+            <div class="filter-date-group">
+              <label for="filtro-prestamos-hasta">Hasta</label>
+              <input type="date" id="filtro-prestamos-hasta" class="filter-date-input" onchange="Prestamos._page=1; Prestamos.render()">
+            </div>
+            <button class="btn btn-sm" onclick="Utils.limpiarFechas('filtro-prestamos-desde','filtro-prestamos-hasta'); Prestamos._page=1; Prestamos.render()" title="Limpiar fecha">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
           <!-- END FEATURE 3 -->
           <div class="table-card">
@@ -445,6 +456,19 @@
             <h2>Mi historial</h2>
             <p>Tus préstamos y devoluciones</p>
           </div>
+          <div class="filter-bar">
+            <div class="filter-date-group">
+              <label for="filtro-historial-desde">Desde</label>
+              <input type="date" id="filtro-historial-desde" class="filter-date-input" onchange="MiHistorial._page=1; MiHistorial.render()">
+            </div>
+            <div class="filter-date-group">
+              <label for="filtro-historial-hasta">Hasta</label>
+              <input type="date" id="filtro-historial-hasta" class="filter-date-input" onchange="MiHistorial._page=1; MiHistorial.render()">
+            </div>
+            <button class="btn btn-sm" onclick="Utils.limpiarFechas('filtro-historial-desde','filtro-historial-hasta'); MiHistorial._page=1; MiHistorial.render()" title="Limpiar fecha">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
           <div class="table-card">
             <table id="tabla-mihistorial-wrapper">
               <thead>
@@ -469,6 +493,19 @@
           <div class="page-header">
             <h2>Reportes</h2>
             <p>Estadísticas de la biblioteca</p>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-date-group">
+              <label for="filtro-reportes-desde">Desde</label>
+              <input type="date" id="filtro-reportes-desde" class="filter-date-input" onchange="Reportes.render()">
+            </div>
+            <div class="filter-date-group">
+              <label for="filtro-reportes-hasta">Hasta</label>
+              <input type="date" id="filtro-reportes-hasta" class="filter-date-input" onchange="Reportes.render()">
+            </div>
+            <button class="btn btn-sm" onclick="Utils.limpiarFechas('filtro-reportes-desde','filtro-reportes-hasta'); Reportes.render()" title="Limpiar fecha">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
           <div class="stats-grid" id="stats-reportes"></div>
           <div class="table-card">

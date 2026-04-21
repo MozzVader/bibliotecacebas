@@ -203,6 +203,30 @@ const Utils = {
     return new Date(fecha);
   },
 
+  limpiarFechas(idDesde, idHasta) {
+    const d = document.getElementById(idDesde);
+    const h = document.getElementById(idHasta);
+    if (d) d.value = "";
+    if (h) h.value = "";
+  },
+
+  filtrarPorFecha(idDesde, idHasta, fechaItem) {
+    const desdeVal = document.getElementById(idDesde)?.value;
+    const hastaVal = document.getElementById(idHasta)?.value;
+    if (!desdeVal && !hastaVal) return true; // no filter
+    const fecha = this.toDate(fechaItem);
+    if (!fecha) return !desdeVal && !hastaVal; // item has no date, include only if no filter
+    if (desdeVal) {
+      const desde = new Date(desdeVal + "T00:00:00");
+      if (fecha < desde) return false;
+    }
+    if (hastaVal) {
+      const hasta = new Date(hastaVal + "T23:59:59");
+      if (fecha > hasta) return false;
+    }
+    return true;
+  },
+
   async cargarNombres() {
     const [librosSnap, usuariosSnap] = await Promise.all([
       getDocs(collection(db, "libros")),
@@ -2055,6 +2079,9 @@ const Prestamos = {
           if (!texto.includes(filtro)) return;
         }
 
+        // Filter by date range (based on fechaPrestamo)
+        if (!Utils.filtrarPorFecha("filtro-prestamos-desde", "filtro-prestamos-hasta", data.fechaPrestamo)) return;
+
         this._data.push({ id, ...data, estado, badge, nombreLibro, nombreUsu });
       });
 
@@ -2100,7 +2127,7 @@ const Prestamos = {
       });
 
       if (!html) {
-        const hayFiltro = filtro || filtroEstado;
+        const hayFiltro = filtro || filtroEstado || document.getElementById("filtro-prestamos-desde")?.value || document.getElementById("filtro-prestamos-hasta")?.value;
         html = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--texto-muted)">
           ${hayFiltro ? "No se encontraron resultados." : "No hay prestamos registrados."}
         </td></tr>`;
@@ -2519,6 +2546,9 @@ const MiHistorial = {
             diasAtraso = Math.max(0, Math.ceil((fechaReal - fechaDev) / (1000 * 60 * 60 * 24)));
           }
         }
+
+        // Filter by date range (based on fechaPrestamo)
+        if (!Utils.filtrarPorFecha("filtro-historial-desde", "filtro-historial-hasta", data.fechaPrestamo)) return;
 
         this._data.push({
           id: docSnap.id,
@@ -2980,12 +3010,17 @@ const Reportes = {
       const usuariosSnap = await getDocs(collection(db, "usuarios"));
       const librosSnap = await getDocs(collection(db, "libros"));
 
-      let totalPrestamos = prestamosSnap.size;
+      let totalPrestamos = 0;
       let devueltos = 0;
       let activos = 0;
       let vencidos = 0;
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
+
+      // Check if date filter is active
+      const filtroDesde = document.getElementById("filtro-reportes-desde")?.value;
+      const filtroHasta = document.getElementById("filtro-reportes-hasta")?.value;
+      const hayFiltroFecha = !!(filtroDesde || filtroHasta);
 
       const prestamosPorLibro = {};
       const prestamosPorUsuario = {};
@@ -3011,6 +3046,11 @@ const Reportes = {
 
       prestamosSnap.forEach((docSnap) => {
         const data = docSnap.data();
+
+        // Skip loans outside date range
+        if (hayFiltroFecha && !Utils.filtrarPorFecha("filtro-reportes-desde", "filtro-reportes-hasta", data.fechaPrestamo)) return;
+
+        totalPrestamos++;
 
         if (data.estado === "devuelto") devueltos++;
         else {
@@ -3063,7 +3103,7 @@ const Reportes = {
         <div class="stat-card">
           <div class="label">Total prestamos</div>
           <div class="value">${totalPrestamos}</div>
-          <div class="trend">historicos</div>
+          <div class="trend">${hayFiltroFecha ? "en el periodo seleccionado" : "historicos"}</div>
         </div>
         <div class="stat-card">
           <div class="label">Este mes</div>

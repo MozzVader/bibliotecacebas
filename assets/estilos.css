@@ -1078,6 +1078,10 @@ header, .badge {
     width: 100%;
     min-width: 0;
   }
+  .filter-date-input {
+    min-width: 0;
+    width: 100%;
+  }
 
   /* ── Toolbar ── */
   .toolbar {
@@ -1232,6 +1236,35 @@ th.sortable.desc .sort-arrow {
   transition: all 0.18s;
 }
 .filter-select:focus {
+  border-color: var(--verde);
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.1);
+}
+
+/* ── Date range filter ── */
+.filter-date-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter-date-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texto-muted);
+  white-space: nowrap;
+}
+.filter-date-input {
+  padding: 7px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  background: var(--glass-bg-solid);
+  color: var(--texto);
+  outline: none;
+  transition: all 0.18s;
+  min-width: 135px;
+}
+.filter-date-input:focus {
   border-color: var(--verde);
   box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.1);
 }
