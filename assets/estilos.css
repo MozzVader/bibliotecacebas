@@ -437,7 +437,16 @@ header h1 {
 /* ════════════════════════════════════════════
    PAGE HEADER
    ════════════════════════════════════════════ */
-.page-header { margin-bottom: 1.75rem; }
+.page-header {
+  margin-bottom: 1.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-header > div { flex: 1; min-width: 0; }
+.page-header > .btn-outline { flex-shrink: 0; align-self: flex-start; margin-top: 4px; }
 .page-header h2 {
   font-family: 'Montserrat', serif;
   font-size: 26px; font-weight: 700; letter-spacing: -0.3px;
@@ -550,6 +559,16 @@ tr:hover td { background: var(--td-hover); }
   transform: translateY(-1px);
 }
 .btn-sm { padding: 4px 10px; font-size: 13px; border-radius: 4px; }
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--borde);
+  color: var(--texto-medio);
+}
+.btn-outline:hover {
+  background: var(--glass-bg-solid);
+  border-color: var(--primary);
+  color: var(--primary);
+}
 .btn-danger {
   border-color: var(--badge-rojo-txt); color: var(--badge-rojo-txt);
   background: transparent;

@@ -3638,6 +3638,295 @@ const CargaMasiva = {
 window.CargaMasiva = CargaMasiva;
 
 // ══════════════════════════════════════════════════════════════
+//  EXPORTAR — Exportacion a PDF y XLSX
+// ══════════════════════════════════════════════════════════════
+
+const Exportar = {
+  _tipo: "", // 'catalogo' o 'prestamos'
+
+  abrirModal(tipo) {
+    this._tipo = tipo;
+    const subtitulo = document.getElementById("exportar-subtitulo");
+    if (tipo === "catalogo") {
+      subtitulo.textContent = "Exporta el catalogo de libros respetando los filtros activos.";
+    } else {
+      subtitulo.textContent = "Exporta los prestamos respetando los filtros activos.";
+    }
+    UI.abrirModal("modal-exportar");
+  },
+
+  async ejecutar(formato) {
+    Utils.loading(true);
+    try {
+      if (this._tipo === "catalogo") {
+        if (formato === "pdf") await this._catalogoPDF();
+        else await this._catalogoXLSX();
+      } else {
+        if (formato === "pdf") await this._prestamosPDF();
+        else await this._prestamosXLSX();
+      }
+      UI.cerrarModal("modal-exportar");
+      Toast.mostrar("Exportacion exitosa", "success");
+    } catch (error) {
+      console.error("Error al exportar:", error);
+      Toast.mostrar("Error al exportar los datos.", "error");
+    } finally {
+      Utils.loading(false);
+    }
+  },
+
+  // ── Helpers ──────────────────────────────────────────────────
+  _hoy() {
+    return new Date().toLocaleDateString("es-AR");
+  },
+
+  _fechaStr(fecha) {
+    if (!fecha) return "";
+    const d = Utils.toDate(fecha);
+    return d ? d.toLocaleDateString("es-AR") : "";
+  },
+
+  // ── CATALOGO PDF ────────────────────────────────────────────
+  async _catalogoPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF("p", "mm", "a4");
+    const data = Catalogo._data;
+
+    // Logo
+    try {
+      const logoImg = await this._loadImage("assets/logo-cebas48.png");
+      doc.addImage(logoImg, "PNG", 14, 10, 12, 12);
+    } catch (e) { /* no logo, skip */ }
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(28, 62, 86); // #1c3e56
+    doc.text("Biblioteca CEBAS 2", 29, 16);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(107, 114, 128);
+    doc.text("Catalogo de libros", 29, 21);
+
+    // Date
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Fecha: ${this._hoy()}`, 195, 21, { align: "right" });
+
+    // Line
+    doc.setDrawColor(28, 62, 86);
+    doc.setLineWidth(0.5);
+    doc.line(14, 26, 195, 26);
+
+    // Stats
+    const totalEj = data.reduce((s, l) => s + (l.ejemplares || 0), 0);
+    const totalDisp = data.reduce((s, l) => s + (l.disponibles || 0), 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(28, 62, 86);
+    doc.text(`${data.length} titulos  |  ${totalEj} ejemplares  |  ${totalDisp} disponibles  |  ${totalEj - totalDisp} prestados`, 14, 32);
+
+    // Table
+    const head = [["Titulo", "Autor", "ISBN", "Genero", "Ej.", "Disp."]];
+    const body = data.map(l => [
+      l.titulo || "",
+      l.autor || "",
+      l.isbn || "",
+      l.genero || "",
+      String(l.ejemplares || 0),
+      String(l.disponibles || 0),
+    ]);
+
+    doc.autoTable({
+      head, body,
+      startY: 36,
+      margin: { left: 14, right: 14 },
+      headStyles: {
+        fillColor: [28, 62, 86],
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: "bold",
+        cellPadding: 3,
+      },
+      bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+      alternateRowStyles: { fillColor: [241, 245, 249] },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 38 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 12, halign: "center" },
+        5: { cellWidth: 14, halign: "center" },
+      },
+      styles: { overflow: "linebreak" },
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(160, 160, 160);
+      doc.text("Biblioteca CEBAS 2 - Documento generado automaticamente", 14, 287);
+      doc.text(`Pagina ${i} de ${pageCount}`, 195, 287, { align: "right" });
+      doc.setDrawColor(28, 62, 86);
+      doc.setLineWidth(0.3);
+      doc.line(14, 283, 195, 283);
+    }
+
+    doc.save(`catalogo_biblioteca_${this._dateSlug()}.pdf`);
+  },
+
+  // ── CATALOGO XLSX ───────────────────────────────────────────
+  async _catalogoXLSX() {
+    const data = Catalogo._data;
+    const rows = [["Titulo", "Autor", "ISBN", "Genero", "Ejemplares", "Disponibles"]];
+    data.forEach(l => {
+      rows.push([l.titulo || "", l.autor || "", l.isbn || "", l.genero || "", l.ejemplares || 0, l.disponibles || 0]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 35 }, { wch: 30 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 12 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Catalogo");
+    XLSX.writeFile(wb, `catalogo_biblioteca_${this._dateSlug()}.xlsx`);
+  },
+
+  // ── PRESTAMOS PDF ───────────────────────────────────────────
+  async _prestamosPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF("p", "mm", "a4");
+    const data = Prestamos._data;
+
+    // Logo
+    try {
+      const logoImg = await this._loadImage("assets/logo-cebas48.png");
+      doc.addImage(logoImg, "PNG", 14, 10, 12, 12);
+    } catch (e) { /* no logo */ }
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(28, 62, 86);
+    doc.text("Biblioteca CEBAS 2", 29, 16);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(107, 114, 128);
+    doc.text("Registro de prestamos", 29, 21);
+
+    // Date
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Fecha: ${this._hoy()}`, 195, 21, { align: "right" });
+
+    // Line
+    doc.setDrawColor(28, 62, 86);
+    doc.setLineWidth(0.5);
+    doc.line(14, 26, 195, 26);
+
+    // Stats
+    const activos = data.filter(p => p.estado === "Activo").length;
+    const vencidos = data.filter(p => p.estado === "Vencido").length;
+    const devueltos = data.filter(p => p.estado === "Devuelto").length;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(28, 62, 86);
+    doc.text(`${data.length} total  |  ${activos} activos  |  ${vencidos} vencidos  |  ${devueltos} devueltos`, 14, 32);
+
+    // Table
+    const head = [["Libro", "Usuario", "Prestamo", "Devolucion", "Estado"]];
+    const body = data.map(p => [
+      p.nombreLibro || p.libroTitulo || "",
+      p.nombreUsu || p.usuarioNombre || "",
+      this._fechaStr(p.fechaPrestamo),
+      this._fechaStr(p.fechaDevolucion),
+      p.estado || "",
+    ]);
+
+    doc.autoTable({
+      head, body,
+      startY: 36,
+      margin: { left: 14, right: 14 },
+      headStyles: {
+        fillColor: [28, 62, 86],
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: "bold",
+        cellPadding: 3,
+      },
+      bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+      alternateRowStyles: { fillColor: [241, 245, 249] },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 20 },
+      },
+      styles: { overflow: "linebreak" },
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(160, 160, 160);
+      doc.text("Biblioteca CEBAS 2 - Documento generado automaticamente", 14, 287);
+      doc.text(`Pagina ${i} de ${pageCount}`, 195, 287, { align: "right" });
+      doc.setDrawColor(28, 62, 86);
+      doc.setLineWidth(0.3);
+      doc.line(14, 283, 195, 283);
+    }
+
+    doc.save(`prestamos_biblioteca_${this._dateSlug()}.pdf`);
+  },
+
+  // ── PRESTAMOS XLSX ──────────────────────────────────────────
+  async _prestamosXLSX() {
+    const data = Prestamos._data;
+    const rows = [["Libro", "Usuario", "Fecha prestamo", "Devolucion", "Estado"]];
+    data.forEach(p => {
+      rows.push([
+        p.nombreLibro || p.libroTitulo || "",
+        p.nombreUsu || p.usuarioNombre || "",
+        this._fechaStr(p.fechaPrestamo),
+        this._fechaStr(p.fechaDevolucion),
+        p.estado || "",
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 35 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Prestamos");
+    XLSX.writeFile(wb, `prestamos_biblioteca_${this._dateSlug()}.xlsx`);
+  },
+
+  // ── Utilities ───────────────────────────────────────────────
+  _loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  },
+
+  _dateSlug() {
+    return new Date().toISOString().slice(0, 10);
+  },
+};
+
+window.Exportar = Exportar;
+
+// ══════════════════════════════════════════════════════════════
 //  INICIALIZACIÓN
 // ══════════════════════════════════════════════════════════════
 
