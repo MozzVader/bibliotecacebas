@@ -364,7 +364,7 @@ header h1 {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border-right: 1px solid var(--sidebar-border);
-  padding: 1.25rem 0;
+  padding: 0.625rem 0;
   position: fixed; top: var(--header-h); bottom: 0;
   display: flex;
   flex-direction: column;
