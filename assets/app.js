@@ -218,6 +218,17 @@ const Utils = {
   },
 
   async cargarNombres() {
+    if (this._nombresCache) return this._nombresCache;
+    if (this._nombresPromise) return this._nombresPromise;
+    this._nombresPromise = this._fetchNombres();
+    try {
+      return await this._nombresPromise;
+    } finally {
+      this._nombresPromise = null;
+    }
+  },
+
+  async _fetchNombres() {
     const [librosSnap, usuariosSnap] = await Promise.all([
       getDocs(collection(db, "libros")),
       getDocs(collection(db, "usuarios"))
@@ -226,7 +237,68 @@ const Utils = {
     const mapUsuarios = {};
     librosSnap.forEach(d => { mapLibros[d.id] = d.data().titulo || "—"; });
     usuariosSnap.forEach(d => { mapUsuarios[d.id] = d.data().nombre || "—"; });
-    return { mapLibros, mapUsuarios };
+    this._nombresCache = { mapLibros, mapUsuarios };
+    return this._nombresCache;
+  },
+
+  /** Obtiene todos los préstamos (cacheado). */
+  async cargarPrestamos() {
+    if (this._prestamosCache) return this._prestamosCache;
+    if (this._prestamosPromise) return this._prestamosPromise;
+    this._prestamosPromise = this._fetchPrestamos();
+    try {
+      return await this._prestamosPromise;
+    } finally {
+      this._prestamosPromise = null;
+    }
+  },
+
+  async _fetchPrestamos() {
+    const snap = await getDocs(collection(db, "prestamos"));
+    const prestamos = [];
+    snap.forEach(d => prestamos.push({ id: d.id, ...d.data() }));
+    this._prestamosCache = prestamos;
+    return prestamos;
+  },
+
+  /** Invalida el cache de datos Firestore (llamar después de mutations). */
+  invalidarCache() {
+    this._nombresCache = null;
+    this._prestamosCache = null;
+  },
+
+  // ── Carga dinámica de CDN ──────────────────────────────
+
+  _loadedScripts: {},
+
+  /** Carga un script externo dinámicamente (solo una vez). */
+  loadScript(src) {
+    if (this._loadedScripts[src]) return this._loadedScripts[src];
+    const p = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Error cargando " + src));
+      document.head.appendChild(s);
+    });
+    this._loadedScripts[src] = p;
+    return p;
+  },
+
+  /** Carga SheetJS (XLSX) bajo demanda. */
+  loadXLSX() {
+    return this.loadScript("https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js");
+  },
+
+  /** Carga jsPDF + autoTable bajo demanda. */
+  async loadJsPDF() {
+    await this.loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js");
+    await this.loadScript("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js");
+  },
+
+  /** Carga Chart.js bajo demanda. */
+  loadChartJS() {
+    return this.loadScript("https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js");
   },
 
   nombreLibro(data, map) {
@@ -1028,6 +1100,7 @@ const Catalogo = {
         createdAt: serverTimestamp()
       });
 
+      Utils.invalidarCache();
       AuditLog.registrar("crear", "libro", null, `Libro "${titulo}" creado (${ejemplares} ejemplares, género: ${genero})`);
 
       document.getElementById("nuevo-libro-titulo").value = "";
@@ -1205,6 +1278,7 @@ const Catalogo = {
         coverURL
       });
 
+      Utils.invalidarCache();
       AuditLog.registrar("editar", "libro", id, `Libro "${titulo}" editado`);
 
       // Go back to view mode and refresh
@@ -1369,6 +1443,7 @@ const Catalogo = {
         eliminados++;
       }
 
+      Utils.invalidarCache();
       this._selectedIds.clear();
       this.render();
 
@@ -1405,6 +1480,7 @@ const Catalogo = {
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
+      Utils.invalidarCache();
       AuditLog.registrar("eliminar", "libro", id, `Libro "${titulo}" eliminado del catálogo`);
       UI.mostrarAlerta( `"${titulo}" eliminado del catalogo.`);
       this.render();
@@ -1695,6 +1771,7 @@ const Usuarios = {
 
       await addDoc(collection(db, this.coleccion), docData);
 
+      Utils.invalidarCache();
       AuditLog.registrar("crear", "usuario", null, `Usuario "${nombre}" creado (tipo: ${tipo})`);
 
       UI.cerrarModal("modal-usuario");
@@ -1848,6 +1925,7 @@ const Usuarios = {
 
       await updateDoc(doc(db, this.coleccion, id), datosActualizar);
 
+      Utils.invalidarCache();
       AuditLog.registrar("editar", "usuario", id, `Usuario "${nombre}" editado (tipo: ${tipo})`);
 
       this._prepararModalAgregar();
@@ -1897,6 +1975,7 @@ const Usuarios = {
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
+      Utils.invalidarCache();
       AuditLog.registrar("eliminar", "usuario", id, `Usuario "${nombre}" eliminado`);
       UI.mostrarAlerta( `"${nombre}" eliminado.`);
       this.render();
@@ -2242,6 +2321,7 @@ const Prestamos = {
         transaction.update(libroRef, { disponibles: increment(-1) });
       });
 
+      Utils.invalidarCache();
       AuditLog.registrar("crear", "prestamo", null, `Préstamo: "${libroTitulo}" → ${usuarioNombre}`);
 
       UI.cerrarModal("modal-prestamo");
@@ -2300,6 +2380,7 @@ const Prestamos = {
         disponibles: increment(1)
       });
 
+      Utils.invalidarCache();
       AuditLog.registrar("devolver", "prestamo", id, `Devolución: "${data.libroTitulo}" (${data.usuarioNombre})`);
 
       UI.mostrarAlerta( `"${data.libroTitulo}" devuelto correctamente.`);
@@ -2362,6 +2443,7 @@ const Prestamos = {
         renovaciones: (data.renovaciones || 0) + 1
       });
 
+      Utils.invalidarCache();
       AuditLog.registrar("editar", "prestamo", id, `Renovacion: "${data.libroTitulo}" (${data.usuarioNombre}) - nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
 
       UI.mostrarAlerta( `"${data.libroTitulo}" renovado. Nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
@@ -2514,14 +2596,13 @@ const Vencidos = {
 
   async actualizarBadge() {
     try {
-      const prestamosSnap = await getDocs(collection(db, "prestamos"));
+      const prestamos = await Utils.cargarPrestamos();
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       let count = 0;
 
-      prestamosSnap.forEach((docSnap) => {
-        const data = docSnap.data();
+      prestamos.forEach((data) => {
         if (data.estado === "devuelto") return;
 
         const fechaDev = Utils.toDate(data.fechaDevolucion);
@@ -2676,15 +2757,15 @@ const Notificaciones = {
   async cargar() {
     try {
       const { mapLibros, mapUsuarios } = await Utils.cargarNombres();
-      const prestamosSnap = await getDocs(collection(db, "prestamos"));
+      const prestamos = await Utils.cargarPrestamos();
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       const dosDias = new Date(hoy);
       dosDias.setDate(dosDias.getDate() + 2);
 
       this.data = [];
-      prestamosSnap.forEach(docSnap => {
-        const data = docSnap.data();
+      prestamos.forEach(p => {
+        const data = p;
         if (data.estado === "devuelto") return;
         const fechaDev = Utils.toDate(data.fechaDevolucion);
         if (!fechaDev) return;
@@ -2693,7 +2774,7 @@ const Notificaciones = {
         if (fechaDev <= hoy) {
           // Already expired
           this.data.push({
-            id: docSnap.id,
+            id: p.id,
             libroTitulo: data.libroTitulo || mapLibros[data.libroId] || "—",
             usuarioNombre: data.usuarioNombre || mapUsuarios[data.usuarioId] || "—",
             fechaDevolucion: fechaDev,
@@ -2704,7 +2785,7 @@ const Notificaciones = {
           // Expiring within 2 days
           const diasRestantes = Math.ceil((fechaDev - hoy) / (1000 * 60 * 60 * 24));
           this.data.push({
-            id: docSnap.id,
+            id: p.id,
             libroTitulo: data.libroTitulo || mapLibros[data.libroId] || "—",
             usuarioNombre: data.usuarioNombre || mapUsuarios[data.usuarioId] || "—",
             fechaDevolucion: fechaDev,
@@ -2928,7 +3009,7 @@ const Dashboard = {
       const totalLibros = Object.keys(mapLibros).length;
       const totalUsuarios = Object.keys(mapUsuarios).length;
 
-      const prestamosSnap = await getDocs(collection(db, "prestamos"));
+      const prestamos = await Utils.cargarPrestamos();
       let activos = 0;
       let vencidos = 0;
       const hoy = new Date();
@@ -2936,9 +3017,8 @@ const Dashboard = {
 
       this._ultimosPrestamos = [];
 
-      prestamosSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const p = { id: docSnap.id, ...data };
+      prestamos.forEach((p) => {
+        const data = p;
 
         const esDevuelto = (data.estado === "devuelto");
         const esActivo = !esDevuelto;
@@ -3340,6 +3420,7 @@ const Reportes = {
       return `${meses[parseInt(mo) - 1]} ${y.slice(2)}`;
     });
 
+    await Utils.loadChartJS();
     this._chartPrestamosMes(displayLabels, data);
     this._chartPorTipo(porTipo);
     this._chartEstado(porEstado);
@@ -3605,7 +3686,8 @@ const CargaMasiva = {
 
   // ── Descargar plantilla ─────────────────────────
 
-  descargarPlantilla() {
+  async descargarPlantilla() {
+    await Utils.loadXLSX();
     const wsData = [
       ["titulo", "autor", "isbn", "genero", "ejemplares"],
       ["El principito", "Antoine de Saint-Exupéry", "978-987-01-0001-1", "Literatura", 3],
@@ -3678,7 +3760,7 @@ const CargaMasiva = {
 
   // ── Procesar archivo ────────────────────────────
 
-  _procesarArchivo(file) {
+  async _procesarArchivo(file) {
     const extensiones = [".xlsx", ".xls", ".csv"];
     const nombre = file.name.toLowerCase();
     if (!extensiones.some(ext => nombre.endsWith(ext))) {
@@ -3885,6 +3967,7 @@ const CargaMasiva = {
         count.textContent = `${procesados}/${total}`;
       }
 
+      Utils.invalidarCache();
       // Audit log
       AuditLog.registrar("crear", "libro", null,
         `Carga masiva: ${total} libros importados desde "${this._archivo?.name || "archivo"}"`);
@@ -3994,7 +4077,8 @@ const CargaMasivaUsuarios = {
     document.getElementById("carga-usuarios-archivo").value = "";
   },
 
-  descargarPlantilla() {
+  async descargarPlantilla() {
+    await Utils.loadXLSX();
     const wsData = [
       ["nombre", "dni", "email", "tipo"],
       ["Juan Pérez", "35123456", "", "Alumno"],
@@ -4043,7 +4127,7 @@ const CargaMasivaUsuarios = {
     });
   },
 
-  _procesarArchivo(file) {
+  async _procesarArchivo(file) {
     const extensiones = [".xlsx", ".xls", ".csv"];
     const nombre = file.name.toLowerCase();
     if (!extensiones.some(ext => nombre.endsWith(ext))) {
@@ -4209,6 +4293,7 @@ const CargaMasivaUsuarios = {
         count.textContent = `${procesados}/${total}`;
       }
 
+      Utils.invalidarCache();
       AuditLog.registrar("crear", "usuario", null,
         `Carga masiva: ${total} usuarios importados (${conCuenta} con cuenta) desde "${this._archivo?.name || "archivo"}"`);
 
@@ -4276,9 +4361,8 @@ const Exportar = {
   async ejecutar(formato) {
     Utils.loading(true);
     try {
-      if (formato === "pdf" && !window.jspdf) {
-        throw new Error("jsPDF no se cargo correctamente. Recargá la página e intentá de nuevo.");
-      }
+      if (formato === "pdf") await Utils.loadJsPDF();
+      else await Utils.loadXLSX();
       if (this._tipo === "catalogo") {
         if (formato === "pdf") await this._catalogoPDF();
         else await this._catalogoXLSX();
