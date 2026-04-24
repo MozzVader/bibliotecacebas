@@ -654,8 +654,15 @@ const Roles = {
   aplicarBotones(seccion) {
     switch (seccion) {
       case "catalogo": {
+        const puedeEliminar = this.puede("eliminarLibro");
         const btnAgregarLibro = document.querySelector("#sec-catalogo .search-bar .btn-primary");
         if (btnAgregarLibro) btnAgregarLibro.style.display = this.puede("agregarLibro") ? "" : "none";
+        // Ocultar columna de checkboxes si no puede eliminar
+        const thBulk = document.querySelector("#tabla-catalogo-wrapper .th-bulk");
+        if (thBulk) thBulk.style.display = puedeEliminar ? "" : "none";
+        document.querySelectorAll("#tabla-catalogo td:first-child").forEach(td => {
+          if (td.querySelector("input[type=checkbox]")) td.style.display = puedeEliminar ? "" : "none";
+        });
         break;
       }
 
@@ -941,14 +948,11 @@ const Catalogo = {
         }
 
         const checked = this._selectedIds.has(item.id) ? "checked" : "";
+        const puedeEliminar = Roles.puede("eliminarLibro");
+        const tdCheck = puedeEliminar ? `<td style="text-align:center" onclick="event.stopPropagation()"><label class="checkbox-wrap"><input type="checkbox" data-id="${item.id}" ${checked} onchange="Catalogo.toggleSeleccion('${item.id}', this.checked)"><span class="checkmark"></span></label></td>` : "";
         html += `
           <tr onclick="Catalogo.verDetalle('${item.id}')">
-            <td style="text-align:center" onclick="event.stopPropagation()">
-              <label class="checkbox-wrap">
-                <input type="checkbox" data-id="${item.id}" ${checked} onchange="Catalogo.toggleSeleccion('${item.id}', this.checked)">
-                <span class="checkmark"></span>
-              </label>
-            </td>
+            ${tdCheck}
             <td><strong>${Utils._esc(item.titulo)}</strong></td>
             <td>${Utils._esc(item.autor)}</td>
             <td>${Utils._esc(item.genero || "—")}</td>
@@ -960,7 +964,8 @@ const Catalogo = {
       if (!html) {
         html = UI.emptyState(
           filtro || filtroGenero ? "search" : "book",
-          filtro || filtroGenero ? "No se encontraron resultados." : "Aún no hay libros en el catálogo."
+          filtro || filtroGenero ? "No se encontraron resultados." : "Aún no hay libros en el catálogo.",
+          Roles.puede("eliminarLibro") ? 6 : 5
         );
       }
 
