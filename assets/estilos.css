@@ -386,7 +386,9 @@ header h1 {
   text-align: center;
   font-size: 10px;
   color: var(--texto-muted);
-  padding: 8px 0 12px;
+  padding: 8px 0 5px;
+  margin-top: auto;
+  border-top: 1px solid var(--borde-suave);
   opacity: 0.5;
   letter-spacing: 0.3px;
 }
