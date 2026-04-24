@@ -11,6 +11,8 @@
   --verde:        #1c3e56;
   --verde-claro:  #e3edf4;
   --verde-oscuro: #132c3e;
+  --primary:      #1c3e56;
+  --fondo-card:   var(--glass-bg-solid);
 
   /* Layout */
   --sidebar-w:  230px;
@@ -81,9 +83,6 @@
 
   /* Loading */
   --loading-bg: rgba(240, 242, 245, 0.75);
-
-  /* Dark mode toggle icon */
-  --dm-icon-opacity: 1;
 }
 
 /* ── Dark theme ── */
@@ -155,10 +154,12 @@
 
   /* Verde claro dark (activo sidebar) */
   --verde-claro: rgba(28, 62, 86, 0.18);
+  --primary:      #6bb8d9;
+  --fondo-card:   var(--glass-bg-solid);
 }
 
 body {
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--fondo-degradado);
   background-attachment: fixed;
   color: var(--texto);
@@ -256,7 +257,6 @@ body::after {
   font-size: 15px; color: var(--texto-muted);
   margin-bottom: 1.5rem;
 }
-.login-hint { font-size: 14px; color: var(--texto-muted); margin-top: 1rem; }
 .btn-block { width: 100%; justify-content: center; }
 
 /* ════════════════════════════════════════════
@@ -303,7 +303,7 @@ header h1 {
 
 .btn-logout {
   padding: 6px 14px; font-size: 14px; font-weight: 600;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   letter-spacing: 0.2px;
   border: 1px solid rgba(255,255,255,0.2);
   color: rgba(255,255,255,0.9);
@@ -536,7 +536,7 @@ tr:hover td { background: var(--td-hover); }
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   font-size: 14px; font-weight: 600;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   cursor: pointer; color: var(--texto-medio);
   transition: all 0.18s; display: inline-flex;
   align-items: center; gap: 6px;
@@ -600,7 +600,7 @@ tr:hover td { background: var(--td-hover); }
   padding: 9px 14px;
   border: 1px solid var(--borde);
   border-radius: 6px;
-  font-size: 15px; font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-size: 15px; font-family: 'Montserrat', sans-serif;
   background: var(--glass-bg-solid);
   color: var(--texto); outline: none;
   width: 100%;
@@ -615,7 +615,7 @@ tr:hover td { background: var(--td-hover); }
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   font-size: 15px;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -699,7 +699,7 @@ tr:hover td { background: var(--td-hover); }
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   line-height: 1.4;
   max-width: 380px;
   min-width: 280px;
@@ -826,11 +826,6 @@ tr:hover td { background: var(--td-hover); }
 }
 
 /* ════════════════════════════════════════════
-   TOOLBAR
-   ════════════════════════════════════════════ */
-.toolbar { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-
-/* ════════════════════════════════════════════
    CONFIGURACION
    ════════════════════════════════════════════ */
 .config-hint {
@@ -838,11 +833,6 @@ tr:hover td { background: var(--td-hover); }
   border-top: 1px solid var(--borde-suave);
 }
 .config-hint p { font-size: 15px; color: var(--texto-muted); line-height: 1.6; }
-.config-hint code {
-  background: var(--gris-100); padding: 2px 6px;
-  border-radius: 4px; font-size: 14px; color: var(--verde);
-  border: 1px solid var(--borde-suave);
-}
 .config-hint strong {
   color: var(--texto-medio);
 }
@@ -971,6 +961,14 @@ header, .badge {
   /* Show logout as icon-only on mobile */
   .user-badge .btn-logout-mobile {
     display: inline-flex !important;
+    width: 34px; height: 34px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.85);
+    font-size: 14px;
+    flex-shrink: 0;
   }
 
   /* ── Sidebar as drawer ── */
@@ -1083,15 +1081,6 @@ header, .badge {
   .filter-date-input {
     min-width: 0;
     width: 100%;
-  }
-
-  /* ── Toolbar ── */
-  .toolbar {
-    flex-direction: column;
-  }
-  .toolbar .btn-primary {
-    width: 100%;
-    justify-content: center;
   }
 
   /* ── Modals: near-fullscreen ── */
@@ -1229,7 +1218,7 @@ th.sortable.desc .sort-arrow {
   border: 1px solid var(--borde);
   border-radius: 6px;
   font-size: 14px;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--glass-bg-solid);
   color: var(--texto);
   outline: none;
@@ -1259,7 +1248,7 @@ th.sortable.desc .sort-arrow {
   border: 1px solid var(--borde);
   border-radius: 6px;
   font-size: 13px;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--glass-bg-solid);
   color: var(--texto);
   outline: none;
@@ -1336,7 +1325,7 @@ th.sortable.desc .sort-arrow {
   color: var(--texto-medio);
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
 }
 .pagination-btn:hover:not(:disabled):not(.active) {
   background: var(--gris-100);
@@ -1544,7 +1533,7 @@ th.sortable.desc .sort-arrow {
   border: 1px solid var(--borde);
   border-radius: 6px;
   font-size: 15px;
-  font-family: 'DM Sans', 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: var(--glass-bg-solid);
   color: var(--texto);
   outline: none;

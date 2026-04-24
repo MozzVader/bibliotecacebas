@@ -6,9 +6,9 @@
 import {
   auth, db, secondaryAuth,
   collection, doc, addDoc, setDoc, getDoc, getDocs,
-  updateDoc, deleteDoc, query, where, orderBy, limit,
+  updateDoc, deleteDoc, query, where, orderBy,
   serverTimestamp, increment, writeBatch, runTransaction,
-  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
+  signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
@@ -51,7 +51,7 @@ const AuditLog = {
       const constraints = [];
 
       // Orden principal
-      const sortField = this._sortBy === "timestamp" ? "timestamp" : "timestamp";
+      const sortField = "timestamp";
       constraints.push(orderBy(sortField, this._sortDir));
 
       // Filtros opcionales
@@ -153,12 +153,6 @@ const Utils = {
     return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
   },
 
-  toInputDate(fecha) {
-    if (!fecha) return "";
-    const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
-    return d.toISOString().split("T")[0];
-  },
-
   today() {
     return new Date().toISOString().split("T")[0];
   },
@@ -189,10 +183,6 @@ const Utils = {
         el.style.display = "none";
       }
     }
-  },
-
-  generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
   },
 
   toDate(fecha) {
@@ -426,7 +416,7 @@ const UI = {
     if (modal) modal.classList.remove("open");
   },
 
-  mostrarAlerta(id, mensaje, tipo = "success", duracion = 3000) {
+  mostrarAlerta(mensaje, tipo = "success", duracion = 3000) {
     UI.toast(mensaje, tipo, duracion);
   },
 
@@ -649,7 +639,7 @@ const Roles = {
       }
 
       case "prestamos": {
-        const btnAgregarPres = document.querySelector("#sec-prestamos .toolbar .btn-primary");
+        const btnAgregarPres = document.querySelector("#sec-prestamos .search-bar .btn-primary");
         if (btnAgregarPres) btnAgregarPres.style.display = this.puede("registrarPrestamo") ? "" : "none";
         document.querySelectorAll("#tabla-prestamos .btn-sm.btn-primary").forEach(btn => {
           btn.style.display = this.puede("devolverPrestamo") ? "" : "none";
@@ -666,93 +656,8 @@ const Roles = {
 // ══════════════════════════════════════════════════════════════
 
 const Auth = {
-  mostrarRegistro() {
-    document.getElementById("form-login").style.display = "none";
-    const fr = document.getElementById("form-registro");
-    if (fr) fr.style.display = "";
-    document.getElementById("login-subtitle-text").textContent = "Creá tu cuenta";
-  },
-
   mostrarLogin() {
-    document.getElementById("form-login").style.display = "";
-    const fr = document.getElementById("form-registro");
-    if (fr) fr.style.display = "none";
     document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
-  },
-
-  /**
-   * Registra un nuevo usuario desde la pantalla de login.
-   * Crea cuenta en Auth + documento en Firestore "usuarios".
-   * Se le asigna tipo "Alumno" por defecto (no se puede elegir rol).
-   */
-  async registrar() {
-    const nombre   = document.getElementById("reg-nombre").value.trim();
-    const dni      = document.getElementById("reg-dni").value.trim();
-    const email    = document.getElementById("reg-email").value.trim();
-    const password = document.getElementById("reg-password").value;
-    const password2 = document.getElementById("reg-password2").value;
-
-    // Validaciones
-    if (!nombre) {
-      UI.toast("El nombre es obligatorio.", "danger");
-      return;
-    }
-    if (!dni) {
-      UI.toast("El DNI es obligatorio.", "danger");
-      return;
-    }
-    if (!email) {
-      UI.toast("El email es obligatorio.", "danger");
-      return;
-    }
-    if (password.length < 6) {
-      UI.toast("La contraseña debe tener al menos 6 caracteres.", "danger");
-      return;
-    }
-    if (password !== password2) {
-      UI.toast("Las contraseñas no coinciden.", "danger");
-      return;
-    }
-
-    Utils.loading(true);
-
-    try {
-      // 1) Crear la cuenta en Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-
-      // 2) Crear documento en Firestore con tipo "Alumno" por defecto
-      await addDoc(collection(db, "usuarios"), {
-        authUid: uid,
-        nombre,
-        dni,
-        email,
-        tipo: "Alumno",
-        createdAt: serverTimestamp()
-      });
-
-      // Log de registro (el usuario aun no tiene Roles cargado, usamos datos directos)
-      AuditLog.registrar("registro", "usuario", uid, `Auto-registro: "${nombre}" (${email})`);
-
-      // La sesion queda iniciada automaticamente.
-      // onAuthStateChanged se encarga del resto.
-    } catch (error) {
-      let msg = "Error al crear la cuenta.";
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          msg = "Ya existe una cuenta con ese email.";
-          break;
-        case "auth/invalid-email":
-          msg = "El formato del email no es valido.";
-          break;
-        case "auth/weak-password":
-          msg = "La contraseña es demasiado debil (minimo 6 caracteres).";
-          break;
-      }
-      UI.toast(msg, "danger");
-    } finally {
-      Utils.loading(false);
-    }
   },
 
   /**
@@ -857,11 +762,6 @@ const Auth = {
         document.getElementById("login-usuario").value = "";
         document.getElementById("login-password").value = "";
         this.mostrarLogin();
-        document.getElementById("reg-nombre") && (document.getElementById("reg-nombre").value = "");
-        document.getElementById("reg-dni") && (document.getElementById("reg-dni").value = "");
-        document.getElementById("reg-email") && (document.getElementById("reg-email").value = "");
-        document.getElementById("reg-password") && (document.getElementById("reg-password").value = "");
-        document.getElementById("reg-password2") && (document.getElementById("reg-password2").value = "");
       }
     });
   }
@@ -980,8 +880,6 @@ const OpenLibraryAPI = {
     return resultados;
   }
 };
-
-window.OpenLibraryAPI = OpenLibraryAPI;
 
 
 // ══════════════════════════════════════════════════════════════
@@ -1510,18 +1408,18 @@ const Catalogo = {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        UI.mostrarAlerta("alert-libro", "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
+        UI.mostrarAlerta( "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
         Utils.loading(false);
         return;
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
       AuditLog.registrar("eliminar", "libro", id, `Libro "${titulo}" eliminado del catálogo`);
-      UI.mostrarAlerta("alert-libro", `"${titulo}" eliminado del catalogo.`);
+      UI.mostrarAlerta( `"${titulo}" eliminado del catalogo.`);
       this.render();
     } catch (error) {
       console.error("Error al eliminar libro:", error);
-      UI.mostrarAlerta("alert-libro", "Error al eliminar el libro.", "danger");
+      UI.mostrarAlerta( "Error al eliminar el libro.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -1808,11 +1706,11 @@ const Usuarios = {
       AuditLog.registrar("crear", "usuario", null, `Usuario "${nombre}" creado (tipo: ${tipo})`);
 
       UI.cerrarModal("modal-usuario");
-      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" registrado correctamente.${linkMsg}`);
+      UI.mostrarAlerta( `Usuario "${nombre}" registrado correctamente.${linkMsg}`);
       this.render();
     } catch (error) {
       console.error("Error al agregar usuario:", error);
-      UI.mostrarAlerta("alert-usuario", "Error al guardar el usuario.", "danger");
+      UI.mostrarAlerta( "Error al guardar el usuario.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -1962,7 +1860,7 @@ const Usuarios = {
 
       this._prepararModalAgregar();
       UI.cerrarModal("modal-usuario");
-      UI.mostrarAlerta("alert-usuario", `Usuario "${nombre}" actualizado.`);
+      UI.mostrarAlerta( `Usuario "${nombre}" actualizado.`);
 
       // Si se cambio el rol del usuario logueado, recargar permisos
       if (Roles.usuarioDocId === id) {
@@ -1977,7 +1875,7 @@ const Usuarios = {
       this.render();
     } catch (error) {
       console.error("Error al actualizar usuario:", error);
-      UI.mostrarAlerta("alert-usuario", "Error al actualizar.", "danger");
+      UI.mostrarAlerta( "Error al actualizar.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -2001,18 +1899,18 @@ const Usuarios = {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        UI.mostrarAlerta("alert-usuario", "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
+        UI.mostrarAlerta( "No se puede eliminar: tiene prestamos activos.", "danger", 4000);
         Utils.loading(false);
         return;
       }
 
       await deleteDoc(doc(db, this.coleccion, id));
       AuditLog.registrar("eliminar", "usuario", id, `Usuario "${nombre}" eliminado`);
-      UI.mostrarAlerta("alert-usuario", `"${nombre}" eliminado.`);
+      UI.mostrarAlerta( `"${nombre}" eliminado.`);
       this.render();
     } catch (error) {
       console.error("Error al eliminar usuario:", error);
-      UI.mostrarAlerta("alert-usuario", "Error al eliminar.", "danger");
+      UI.mostrarAlerta( "Error al eliminar.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -2136,8 +2034,6 @@ const Comprobante = {
   }
 };
 
-window.Comprobante = Comprobante;
-
 
 // ══════════════════════════════════════════════════════════════
 //  PRESTAMOS — Gestion de prestamos y devoluciones (with filter, sort, pagination)
@@ -2150,7 +2046,6 @@ const Prestamos = {
   _sortDirection: 'asc',
   _page: 1,
   _perPage: 20,
-  _filtroEstado: "",
 
   async render() {
     const tbody = document.getElementById("tabla-prestamos");
@@ -2317,15 +2212,15 @@ const Prestamos = {
     const fechaDevolucion = document.getElementById("pres-devolucion").value;
 
     if (!libroId || !usuarioId) {
-      UI.mostrarAlerta("alert-prestamo", "Selecciona un libro y un usuario.", "danger");
+      UI.mostrarAlerta( "Selecciona un libro y un usuario.", "danger");
       return;
     }
     if (!fechaPrestamo || !fechaDevolucion) {
-      UI.mostrarAlerta("alert-prestamo", "Completá las fechas de prestamo y devolucion.", "danger");
+      UI.mostrarAlerta( "Completá las fechas de prestamo y devolucion.", "danger");
       return;
     }
     if (new Date(fechaDevolucion) <= new Date(fechaPrestamo)) {
-      UI.mostrarAlerta("alert-prestamo", "La devolucion debe ser posterior al prestamo.", "danger");
+      UI.mostrarAlerta( "La devolucion debe ser posterior al prestamo.", "danger");
       return;
     }
 
@@ -2357,7 +2252,7 @@ const Prestamos = {
       AuditLog.registrar("crear", "prestamo", null, `Préstamo: "${libroTitulo}" → ${usuarioNombre}`);
 
       UI.cerrarModal("modal-prestamo");
-      UI.mostrarAlerta("alert-prestamo", `Prestamo de "${libroTitulo}" registrado.`);
+      UI.mostrarAlerta( `Prestamo de "${libroTitulo}" registrado.`);
       this.render();
       Vencidos.actualizarBadge();
       Notificaciones.cargar();
@@ -2382,10 +2277,10 @@ const Prestamos = {
     } catch (error) {
       console.error("Error al registrar prestamo:", error);
       if (error.message === "NO_STOCK") {
-        UI.mostrarAlerta("alert-prestamo", "No hay stock disponible para este libro. Recargá el catalogo e intentá de nuevo.", "danger");
+        UI.mostrarAlerta( "No hay stock disponible para este libro. Recargá el catalogo e intentá de nuevo.", "danger");
         Prestamos.cargarSelects();
       } else {
-        UI.mostrarAlerta("alert-prestamo", "Error al registrar el prestamo.", "danger");
+        UI.mostrarAlerta( "Error al registrar el prestamo.", "danger");
       }
     } finally {
       Utils.loading(false);
@@ -2414,7 +2309,7 @@ const Prestamos = {
 
       AuditLog.registrar("devolver", "prestamo", id, `Devolución: "${data.libroTitulo}" (${data.usuarioNombre})`);
 
-      UI.mostrarAlerta("alert-prestamo", `"${data.libroTitulo}" devuelto correctamente.`);
+      UI.mostrarAlerta( `"${data.libroTitulo}" devuelto correctamente.`);
       this.render();
       Vencidos.actualizarBadge();
       Notificaciones.cargar();
@@ -2435,7 +2330,7 @@ const Prestamos = {
       });
     } catch (error) {
       console.error("Error al registrar devolucion:", error);
-      UI.mostrarAlerta("alert-prestamo", "Error al registrar devolucion.", "danger");
+      UI.mostrarAlerta( "Error al registrar devolucion.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -2451,15 +2346,15 @@ const Prestamos = {
       const data = docSnap.data();
 
       if (!data) {
-        UI.mostrarAlerta("alert-prestamo", "Prestamo no encontrado.", "danger");
+        UI.mostrarAlerta( "Prestamo no encontrado.", "danger");
         return;
       }
       if (data.estado !== "activo") {
-        UI.mostrarAlerta("alert-prestamo", "Solo se pueden renovar prestamos activos.", "danger");
+        UI.mostrarAlerta( "Solo se pueden renovar prestamos activos.", "danger");
         return;
       }
       if ((data.renovaciones || 0) >= 1) {
-        UI.mostrarAlerta("alert-prestamo", "Este prestamo ya fue renovado. No se permite mas de una renovacion.", "danger", 4000);
+        UI.mostrarAlerta( "Este prestamo ya fue renovado. No se permite mas de una renovacion.", "danger", 4000);
         return;
       }
 
@@ -2476,13 +2371,13 @@ const Prestamos = {
 
       AuditLog.registrar("editar", "prestamo", id, `Renovacion: "${data.libroTitulo}" (${data.usuarioNombre}) - nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
 
-      UI.mostrarAlerta("alert-prestamo", `"${data.libroTitulo}" renovado. Nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
+      UI.mostrarAlerta( `"${data.libroTitulo}" renovado. Nueva devolucion: ${nuevaFechaDev.toLocaleDateString("es-AR")}`);
       this.render();
       Vencidos.actualizarBadge();
       Notificaciones.cargar();
     } catch (error) {
       console.error("Error al renovar prestamo:", error);
-      UI.mostrarAlerta("alert-prestamo", "Error al renovar el prestamo.", "danger");
+      UI.mostrarAlerta( "Error al renovar el prestamo.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -3612,10 +3507,10 @@ const Config = {
 
       AuditLog.registrar("configurar", "config", this.docId, `Configuración actualizada: ${diasPrestamo} días de préstamo`);
 
-      UI.mostrarAlerta("alert-config", "Configuracion guardada correctamente.");
+      UI.mostrarAlerta( "Configuracion guardada correctamente.");
     } catch (error) {
       console.error("Error al guardar configuracion:", error);
-      UI.mostrarAlerta("alert-config", "Error al guardar la configuracion.", "danger");
+      UI.mostrarAlerta( "Error al guardar la configuracion.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -3647,13 +3542,8 @@ window.Catalogo = Catalogo;
 window.Usuarios = Usuarios;
 window.Prestamos = Prestamos;
 window.Config = Config;
-window.Roles = Roles;
-window.Dashboard = Dashboard;
 window.Vencidos = Vencidos;
-window.Reportes = Reportes;
-window.MiHistorial = MiHistorial;
 window.Notificaciones = Notificaciones;
-window.SearchSelect = SearchSelect;
 
 // ══════════════════════════════════════════════════════════════
 //  CARGA MASIVA — Importar libros desde Excel/CSV
@@ -4023,7 +3913,7 @@ const CargaMasiva = {
       setTimeout(() => {
         this.cerrarModal();
         Catalogo.render();
-        UI.mostrarAlerta("alert-config", `${total} libros importados correctamente.`, "success", 4000);
+        UI.mostrarAlerta( `${total} libros importados correctamente.`, "success", 4000);
       }, 1500);
 
     } catch (error) {
@@ -4085,10 +3975,10 @@ const Exportar = {
         else await this._prestamosXLSX();
       }
       UI.cerrarModal("modal-exportar");
-      Toast.mostrar("Exportacion exitosa", "success");
+      UI.toast("Exportacion exitosa", "success");
     } catch (error) {
       console.error("Error al exportar:", error);
-      Toast.mostrar(error.message || "Error al exportar los datos.", "error");
+      UI.toast(error.message || "Error al exportar los datos.", "danger");
     } finally {
       Utils.loading(false);
     }
@@ -4355,14 +4245,6 @@ document.getElementById("login-password").addEventListener("keypress", (e) => {
 });
 document.getElementById("login-usuario").addEventListener("keypress", (e) => {
   if (e.key === "Enter") Auth.login();
-});
-
-// Permitir registro con Enter (solo si el formulario existe)
-document.getElementById("reg-password2")?.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") Auth.registrar();
-});
-document.getElementById("reg-dni")?.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") Auth.registrar();
 });
 
 // Cerrar modales con Escape
