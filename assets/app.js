@@ -8,7 +8,7 @@ import {
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy,
   serverTimestamp, increment, writeBatch, runTransaction,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase.js";
 
 // ══════════════════════════════════════════════════════════════
@@ -688,51 +688,9 @@ const Roles = {
 // ══════════════════════════════════════════════════════════════
 
 const Auth = {
-  mostrarLogin() {
-    document.getElementById("login-subtitle-text").textContent = "Ingresá para continuar";
-  },
 
   /**
-   * Inicia sesion con email y password
-   */
-  async login() {
-    const email    = document.getElementById("login-usuario").value.trim();
-    const password = document.getElementById("login-password").value;
-
-    if (!email || !password) {
-      UI.toast("Completá email y contraseña.", "danger");
-      return;
-    }
-
-    Utils.loading(true);
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      let msg = "Error al iniciar sesion.";
-      switch (error.code) {
-        case "auth/user-not-found":
-          msg = "No existe una cuenta con ese email.";
-          break;
-        case "auth/wrong-password":
-        case "auth/invalid-credential":
-          msg = "Contraseña incorrecta.";
-          break;
-        case "auth/invalid-email":
-          msg = "El formato del email no es valido.";
-          break;
-        case "auth/too-many-requests":
-          msg = "Demasiados intentos. Espera unos minutos.";
-          break;
-      }
-      UI.toast(msg, "danger");
-    } finally {
-      Utils.loading(false);
-    }
-  },
-
-  /**
-   * Cierra la sesion del usuario actual
+   * Cierra la sesión del usuario actual y redirige a login.html
    */
   async logout() {
     Utils.loading(true);
@@ -742,15 +700,17 @@ const Auth = {
       console.error("Error al cerrar sesion:", error);
     } finally {
       Utils.loading(false);
+      window.location.href = "login.html";
     }
   },
 
   /**
-   * Configura el listener de estado de autenticacion.
+   * Configura el listener de estado de autenticación.
+   * Si hay usuario → carga la app. Si no → redirige a login.html.
    */
   init() {
     onAuthStateChanged(auth, async (user) => {
-      const loginScreen = document.getElementById("pantalla-login");
+      const splash = document.getElementById("auth-splash");
       const appScreen = document.getElementById("app");
 
       if (user) {
@@ -759,8 +719,8 @@ const Auth = {
         // Aplicar permisos al sidebar
         Roles.aplicarSidebar();
 
-        // Mostrar app
-        loginScreen.style.display = "none";
+        // Ocultar splash y mostrar app
+        if (splash) splash.style.display = "none";
         appScreen.classList.remove("app-hidden");
         appScreen.classList.add("app-visible");
 
@@ -785,15 +745,8 @@ const Auth = {
         // Responsive: init sidebar drawer listener
         UI.initResponsive();
       } else {
-        // Sin autenticacion: mostrar login
-        loginScreen.style.display = "";
-        appScreen.classList.add("app-hidden");
-        appScreen.classList.remove("app-visible");
-
-        // Limpiar formularios
-        document.getElementById("login-usuario").value = "";
-        document.getElementById("login-password").value = "";
-        this.mostrarLogin();
+        // Sin autenticación → redirigir a login
+        window.location.href = "login.html";
       }
     });
   }
@@ -4592,14 +4545,6 @@ window.Exportar = Exportar;
 // ══════════════════════════════════════════════════════════════
 //  INICIALIZACIÓN
 // ══════════════════════════════════════════════════════════════
-
-// Permitir login con Enter
-document.getElementById("login-password").addEventListener("keypress", (e) => {
-  if (e.key === "Enter") Auth.login();
-});
-document.getElementById("login-usuario").addEventListener("keypress", (e) => {
-  if (e.key === "Enter") Auth.login();
-});
 
 // Cerrar modales con Escape
 document.addEventListener("keydown", (e) => {
