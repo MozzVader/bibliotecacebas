@@ -394,32 +394,6 @@
             <div id="pagination-usuarios"></div>
           </div>
 
-          <!-- CARGA MASIVA DE USUARIOS -->
-          <div class="table-card" style="padding:1.25rem 1.5rem;margin-top:1rem" id="card-carga-masiva-usuarios">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <div>
-                <div style="font-size:1rem;font-weight:700;color:var(--texto)">Carga Masiva de Usuarios</div>
-                <div style="font-size:0.78rem;color:var(--texto-muted);margin-top:3px">Importá usuarios desde un archivo Excel (.xlsx) o CSV</div>
-              </div>
-              <button class="btn btn-primary" onclick="CargaMasivaUsuarios.abrirModal()" id="btn-carga-masiva-usuarios">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Importar Excel
-              </button>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
-                <span style="font-weight:700;color:var(--texto)">1.</span> Descargá la plantilla
-              </div>
-              <div style="color:var(--gris-300);display:flex;align-items:center;font-size:0.8rem">&#8594;</div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
-                <span style="font-weight:700;color:var(--texto)">2.</span> Completá los datos
-              </div>
-              <div style="color:var(--gris-300);display:flex;align-items:center;font-size:0.8rem">&#8594;</div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
-                <span style="font-weight:700;color:var(--texto)">3.</span> Importá el archivo
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- VENCIDOS -->
@@ -579,10 +553,37 @@
           <div class="table-card" style="padding:1.25rem 1.5rem;margin-top:1rem" id="card-carga-masiva">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
               <div>
-                <div style="font-size:1rem;font-weight:700;color:var(--texto)">Carga Masiva</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--texto)">Carga Masiva de Libros</div>
                 <div style="font-size:0.78rem;color:var(--texto-muted);margin-top:3px">Importá libros desde un archivo Excel (.xlsx) o CSV</div>
               </div>
               <button class="btn btn-primary" onclick="CargaMasiva.abrirModal()" id="btn-carga-masiva">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importar Excel
+              </button>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
+                <span style="font-weight:700;color:var(--texto)">1.</span> Descargá la plantilla
+              </div>
+              <div style="color:var(--gris-300);display:flex;align-items:center;font-size:0.8rem">&#8594;</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
+                <span style="font-weight:700;color:var(--texto)">2.</span> Completá los datos
+              </div>
+              <div style="color:var(--gris-300);display:flex;align-items:center;font-size:0.8rem">&#8594;</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--texto-muted);background:var(--gris-100);padding:5px 12px;border-radius:6px">
+                <span style="font-weight:700;color:var(--texto)">3.</span> Importá el archivo
+              </div>
+            </div>
+          </div>
+
+          <!-- CARGA MASIVA DE USUARIOS -->
+          <div class="table-card" style="padding:1.25rem 1.5rem;margin-top:1rem" id="card-carga-masiva-usuarios">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <div>
+                <div style="font-size:1rem;font-weight:700;color:var(--texto)">Carga Masiva de Usuarios</div>
+                <div style="font-size:0.78rem;color:var(--texto-muted);margin-top:3px">Importá usuarios desde un archivo Excel (.xlsx) o CSV</div>
+              </div>
+              <button class="btn btn-primary" onclick="CargaMasivaUsuarios.abrirModal()" id="btn-carga-masiva-usuarios">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Importar Excel
               </button>

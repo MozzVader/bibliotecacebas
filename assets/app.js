@@ -1544,12 +1544,6 @@ const Usuarios = {
       tbody.innerHTML = html;
       Roles.aplicarBotones("usuarios");
 
-      // Ocultar/mostrar card de carga masiva según rol
-      const cardCargaMasivaUsu = document.getElementById("card-carga-masiva-usuarios");
-      if (cardCargaMasivaUsu) {
-        cardCargaMasivaUsu.style.display = Roles.puede("agregarUsuario") ? "" : "none";
-      }
-
       // Pagination controls
       Utils.renderPagination("pagination-usuarios", sorted.length, this._page, this._perPage, (page) => {
         this._page = page;
@@ -3487,11 +3481,14 @@ const Config = {
         document.getElementById("cfg-dias").value = data.diasPrestamo || 7;
         document.getElementById("cfg-biblio").value = data.nombreBibliotecario || "";
       }
-      // Ocultar/mostrar botón de carga masiva según rol
-      const btnCargaMasiva = document.getElementById("btn-carga-masiva");
-      if (btnCargaMasiva) {
-        const card = btnCargaMasiva.closest(".table-card");
-        if (card) card.style.display = Roles.puede("agregarLibro") ? "" : "none";
+      // Ocultar/mostrar cards de carga masiva según rol
+      const cardCargaMasiva = document.getElementById("card-carga-masiva");
+      if (cardCargaMasiva) {
+        cardCargaMasiva.style.display = Roles.puede("agregarLibro") ? "" : "none";
+      }
+      const cardCargaMasivaUsu = document.getElementById("card-carga-masiva-usuarios");
+      if (cardCargaMasivaUsu) {
+        cardCargaMasivaUsu.style.display = Roles.puede("agregarUsuario") ? "" : "none";
       }
     } catch (error) {
       console.error("Error al cargar configuracion:", error);
