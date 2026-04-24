@@ -381,6 +381,15 @@ header h1 {
   margin-top: auto;
   padding-bottom: 0;
 }
+.sidebar-footer {
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 10px;
+  color: var(--texto-muted);
+  padding: 8px 0 12px;
+  opacity: 0.5;
+  letter-spacing: 0.3px;
+}
 .nav-section { padding: 0 0.75rem; margin-bottom: 0.75rem; }
 .nav-label {
   font-size: 12px; font-weight: 700;
